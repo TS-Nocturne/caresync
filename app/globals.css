@@ -1,26 +1,1133 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggle .dark on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ========================================
+   CareSync UI — Design System
+   ======================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* — Core Palette — */
+  --background: #f8fafb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0d9488;
+
+  /* — Healthcare Accent — */
+  --primary: #0d9488;
+  --primary-foreground: #ffffff;
+  --primary-light: #5eead4;
+  --primary-dark: #0f766e;
+
+  /* — Status Colors — */
+  --status-ok: #22c55e;
+  --status-ok-bg: #f0fdf4;
+  --status-warning: #f59e0b;
+  --status-warning-bg: #fffbeb;
+  --status-critical: #ef4444;
+  --status-critical-bg: #fef2f2;
+
+  /* — Surface/Glass — */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.24);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+
+  /* — Sidebar — */
+  --sidebar-bg: #0f172a;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-accent: #1e293b;
+
+  /* — Radius — */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-full: 9999px;
 }
 
+/* — Dark Mode — */
+.dark {
+  --background: #0b1120;
+  --foreground: #e2e8f0;
+  --card: #111827;
+  --card-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #14b8a6;
+
+  --primary: #14b8a6;
+  --primary-foreground: #ffffff;
+  --primary-light: #2dd4bf;
+  --primary-dark: #0d9488;
+
+  --status-ok: #4ade80;
+  --status-ok-bg: rgba(34, 197, 94, 0.1);
+  --status-warning: #fbbf24;
+  --status-warning-bg: rgba(245, 158, 11, 0.1);
+  --status-critical: #f87171;
+  --status-critical-bg: rgba(239, 68, 68, 0.1);
+
+  --glass-bg: rgba(17, 24, 39, 0.72);
+  --glass-border: rgba(30, 41, 59, 0.5);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  --sidebar-bg: #0b1120;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-accent: #1e293b;
+}
+
+/* — Tailwind v4 Theme Inline — */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
+  --color-status-ok: var(--status-ok);
+  --color-status-ok-bg: var(--status-ok-bg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-critical: var(--status-critical);
+  --color-status-critical-bg: var(--status-critical-bg);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --font-sans: "Segoe UI", "Noto Sans Thai", Tahoma, Arial, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ========================================
+   Base Styles
+   ======================================== */
+* {
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+/* ========================================
+   Glass Card
+   ======================================== */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-xl);
+}
+
+/* ========================================
+   Status Indicators
+   ======================================== */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot--ok {
+  background: var(--status-ok);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.status-dot--warning {
+  background: var(--status-warning);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+.status-dot--critical {
+  background: var(--status-critical);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+  animation: pulse-critical 1.5s ease-in-out infinite;
+}
+
+/* ========================================
+   Animations
+   ======================================== */
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes check-bounce {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes typewriter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out;
+}
+
+.animate-check-bounce {
+  animation: check-bounce 0.3s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Stagger children animations */
+.stagger-children > * {
+  animation: fade-in 0.4s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 400ms; }
+
+/* ========================================
+   Custom Scrollbar
+   ======================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 3px;
+  opacity: 0.4;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.6;
+}
+
+/* ========================================
+   Pain Body Map SVG Styles
+   ======================================== */
+.body-part {
+  cursor: pointer;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+  fill: var(--muted);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.body-part:hover {
+  fill: var(--primary-light);
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.body-part.active {
+  fill: var(--status-critical);
+  stroke: var(--status-critical);
+  stroke-width: 2;
+}
+
+/* ========================================
+   Signature Canvas
+   ======================================== */
+.signature-canvas {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  cursor: crosshair;
+  touch-action: none;
+  background: var(--card);
+}
+
+.signature-canvas.signing {
+  border-color: var(--primary);
+  border-style: solid;
+}
+
+/* ========================================
+   Slide-to-Emergency Component
+   ======================================== */
+.slide-emergency-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slide-emergency-label {
+  font-size: 0.875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #b91c1c;
+}
+
+.dark .slide-emergency-label {
+  color: #fca5a5;
+}
+
+.slide-emergency-track {
+  position: relative;
+  height: 80px;
+  border-radius: 40px;
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 50%, #b91c1c 100%);
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+  box-shadow:
+    0 4px 20px rgba(220, 38, 38, 0.35),
+    inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.slide-emergency-track--activated {
+  background: linear-gradient(135deg, #15803d 0%, #22c55e 50%, #16a34a 100%);
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.35);
+}
+
+.slide-emergency-track--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.slide-emergency-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+  border-radius: 40px;
+  transition: width 0.05s linear;
+}
+
+.slide-emergency-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.slide-emergency-text--activated {
+  opacity: 1 !important;
+  animation: fade-in 0.3s ease-out;
+}
+
+.slide-emergency-arrows {
+  display: inline-block;
+  animation: slide-hint 1.8s ease-in-out infinite;
+  letter-spacing: 2px;
+  font-size: 1.2rem;
+  opacity: 0.7;
+}
+
+.slide-emergency-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 0 0 3px rgba(255, 255, 255, 0.3);
+  z-index: 2;
+}
+
+.slide-emergency-thumb:active,
+.slide-emergency-thumb--dragging {
+  cursor: grabbing;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(255, 255, 255, 0.4);
+  transform-origin: center;
+}
+
+.slide-emergency-thumb--activated {
+  background: #22c55e;
+  cursor: default;
+}
+
+.slide-emergency-thumb--activated .slide-emergency-icon {
+  filter: brightness(2);
+}
+
+.slide-emergency-icon {
+  font-size: 1.75rem;
+  animation: emergency-icon-pulse 2s ease-in-out infinite;
+}
+
+.slide-emergency-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #dc2626;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.slide-emergency-hint {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ========================================
+   Emergency Screen (Full-page overlay)
+   ======================================== */
+.emergency-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 30%, #dc2626 70%, #b91c1c 100%);
+  animation: fade-in 0.4s ease-out;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.emergency-screen__pulse {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.2) 100%);
+  animation: emergency-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.emergency-screen__close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.emergency-screen__close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.emergency-screen__close-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.emergency-screen__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+}
+
+.emergency-screen__icon-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: emergency-icon-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
+}
+
+.emergency-screen__icon {
+  font-size: 3rem;
+}
+
+.emergency-screen__title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: white;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.emergency-screen__timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.emergency-screen__timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f87171;
+  animation: pulse-critical 1s ease-in-out infinite;
+}
+
+.emergency-screen__message-box {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.emergency-screen__message {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  text-align: left;
+}
+
+.emergency-screen__call-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  padding: 24px 32px;
+  border-radius: 24px;
+  background: white;
+  color: #b91c1c;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.3),
+    0 0 0 4px rgba(255, 255, 255, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: emergency-call-breathe 2s ease-in-out infinite;
+}
+
+.emergency-screen__call-btn:hover {
+  transform: scale(1.03);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 6px rgba(255, 255, 255, 0.3);
+}
+
+.emergency-screen__call-btn:active {
+  transform: scale(0.98);
+}
+
+.emergency-screen__phone-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.emergency-screen__call-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #991b1b;
+  opacity: 0.8;
+}
+
+.emergency-screen__call-number {
+  display: block;
+  font-size: 2.25rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0.05em;
+}
+
+.emergency-screen__contacts {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emergency-screen__contacts-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.emergency-screen__contacts-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emergency-screen__contact-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  text-decoration: none;
+  transition: background 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.emergency-screen__contact-card:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.emergency-screen__contact-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.emergency-screen__contact-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.emergency-screen__contact-relation {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.emergency-screen__contact-phone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.emergency-screen__patient-info {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+}
+
+.emergency-screen__dismiss-btn {
+  padding: 10px 24px;
+  border-radius: 12px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.emergency-screen__dismiss-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========================================
+   Workspace Selector
+   ======================================== */
+.workspace-selector {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background:
+    radial-gradient(ellipse at top left, rgba(13, 148, 136, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
+    var(--background);
+}
+
+.workspace-selector__header {
+  text-align: center;
+  margin-bottom: 40px;
+  animation: fade-in 0.5s ease-out;
+}
+
+.workspace-selector__title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--foreground);
+  margin-bottom: 8px;
+}
+
+.workspace-selector__subtitle {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.workspace-selector__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  max-width: 720px;
+  width: 100%;
+}
+
+.workspace-card {
+  position: relative;
+  padding: 28px 24px;
+  border-radius: var(--radius-2xl);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  animation: slide-up 0.5s ease-out both;
+}
+
+.workspace-card:nth-child(1) { animation-delay: 0ms; }
+.workspace-card:nth-child(2) { animation-delay: 100ms; }
+.workspace-card:nth-child(3) { animation-delay: 200ms; }
+.workspace-card:nth-child(4) { animation-delay: 300ms; }
+.workspace-card:nth-child(5) { animation-delay: 400ms; }
+
+.workspace-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--primary) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.workspace-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 1px var(--primary);
+  border-color: var(--primary);
+}
+
+.workspace-card:hover::before {
+  opacity: 0.05;
+}
+
+.workspace-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.workspace-card__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+}
+
+.workspace-card__name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.workspace-card__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.workspace-card__role--owner {
+  background: rgba(13, 148, 136, 0.1);
+  color: var(--primary);
+}
+
+.workspace-card__role--caregiver {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.workspace-card__role--member {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.workspace-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.workspace-card__arrow {
+  position: absolute;
+  top: 28px;
+  right: 24px;
+  width: 24px;
+  height: 24px;
+  color: var(--muted-foreground);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.3s ease;
+}
+
+.workspace-card:hover .workspace-card__arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* ========================================
+   Workspace Switcher (in Navigation)
+   ======================================== */
+.workspace-switcher {
+  position: relative;
+}
+
+.workspace-switcher__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--foreground);
+  transition: all 0.2s ease;
+}
+
+.workspace-switcher__trigger:hover {
+  border-color: var(--primary);
+  background: var(--muted);
+}
+
+.workspace-switcher__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  animation: fade-in 0.2s ease-out;
+}
+
+.workspace-switcher__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--foreground);
+}
+
+.workspace-switcher__item:hover {
+  background: var(--muted);
+}
+
+.workspace-switcher__item--active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.workspace-switcher__item--active:hover {
+  background: var(--primary-dark);
+}
+
+.workspace-switcher__item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.workspace-switcher__item-name {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.workspace-switcher__item-role {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+/* ========================================
+   Additional Animations
+   ======================================== */
+@keyframes slide-hint {
+  0%, 100% { transform: translateX(0); opacity: 0.4; }
+  50% { transform: translateX(8px); opacity: 0.9; }
+}
+
+@keyframes emergency-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes emergency-icon-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+@keyframes emergency-call-breathe {
+  0%, 100% { box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,255,255,0.2); }
+  50% { box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 0 8px rgba(255,255,255,0.15); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   Dedicated Emergency Page
+   ======================================== */
+.emergency-dedicated-page {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(ellipse at top, rgba(220, 38, 38, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(127, 29, 29, 0.03) 0%, transparent 50%),
+    var(--background);
+}
+
+.emergency-dedicated-page__inner {
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.emergency-dedicated-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  align-self: flex-start;
+}
+
+.emergency-dedicated-page__back:hover {
+  color: var(--foreground);
+}
+
+.emergency-dedicated-page__header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.emergency-dedicated-page__icon-ring {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border: 2px solid rgba(220, 38, 38, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: emergency-icon-pulse 2.5s ease-in-out infinite;
+}
+
+.dark .emergency-dedicated-page__icon-ring {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%);
+  border-color: rgba(220, 38, 38, 0.25);
+}
+
+.emergency-dedicated-page__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.emergency-dedicated-page__subtitle {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.emergency-dedicated-page__error {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  color: #dc2626;
+  font-size: 0.85rem;
+}
+
+.dark .emergency-dedicated-page__error {
+  color: #f87171;
+}
+
+.emergency-dedicated-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+
+.emergency-dedicated-page__status {
+  padding: 16px 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.emergency-dedicated-page__slider-area {
+  padding: 24px;
+  border-radius: var(--radius-2xl);
+  border: 2px solid rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.03);
+}
+
+.dark .emergency-dedicated-page__slider-area {
+  border-color: rgba(220, 38, 38, 0.15);
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.emergency-dedicated-page__info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.emergency-dedicated-page__info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.emergency-dedicated-page__info-item svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+

@@ -1,65 +1,105 @@
+import Link from "next/link";
 import Image from "next/image";
+import { Metadata } from "next";
+import MarketingNav from "@/app/components/marketing/MarketingNav";
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: "CareSync — ระบบดูแลผู้สูงอายุอัจฉริยะแบบครบวงจร",
+  description: "แพลตฟอร์มดูแลผู้สูงอายุสำหรับครอบครัว รองรับการบันทึกและแสดงข้อมูลสุขภาพเพื่อประกอบการติดตามอาการแบบ 24/7",
+};
+
+export default function MarketingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+      <MarketingNav />
+
+      {/* Hero Section */}
+      <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium mb-8 animate-fade-in">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          Powered by LangGraph & health data monitoring
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-foreground mb-6 max-w-4xl mx-auto leading-tight animate-fade-in" style={{ animationDelay: "100ms" }}>
+          The operating system for <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500">modern eldercare</span>
+        </h1>
+        <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "200ms" }}>
+          ยกระดับการดูแลผู้สูงอายุด้วยแพลตฟอร์มเดียวที่เชื่อมต่อผู้ดูแล ครอบครัว และ AI เข้าด้วยกันแบบ Real-time
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "300ms" }}>
+          <Link href="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary text-white text-lg font-semibold rounded-full hover:bg-primary-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
+            Get Started for Free
+          </Link>
+        </div>
+
+        {/* Dashboard Preview */}
+        <div className="mt-20 relative mx-auto max-w-5xl animate-fade-in" style={{ animationDelay: "500ms" }}>
+          <div className="absolute inset-0 bg-gradient-to-b from-teal-500/10 to-transparent blur-3xl -z-10 rounded-[3rem]" />
+          <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-2 shadow-2xl">
+            <div className="rounded-xl overflow-hidden border border-border bg-muted aspect-video flex items-center justify-center relative">
+              <div className="absolute inset-0 bg-gradient-to-tr from-teal-50 to-emerald-50 opacity-50" />
+              {/* Abstract Dashboard UI */}
+              <div className="w-3/4 h-3/4 bg-card rounded-lg shadow-sm border border-border flex flex-col overflow-hidden relative z-10">
+                <div className="h-12 border-b border-slate-100 flex items-center px-4 gap-4">
+                  <div className="w-24 h-4 bg-slate-100 rounded-full" />
+                  <div className="w-16 h-4 bg-slate-100 rounded-full" />
+                </div>
+                <div className="flex-1 flex p-4 gap-4">
+                  <div className="w-1/3 h-full bg-muted rounded border border-border" />
+                  <div className="w-2/3 h-full flex flex-col gap-4">
+                    <div className="h-1/3 w-full bg-emerald-50 rounded border border-emerald-100" />
+                    <div className="flex-1 w-full bg-muted rounded border border-border" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
+
+      {/* Features Grid */}
+      <section id="features" className="py-24 bg-card border-t border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Everything you need to care for your loved ones</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">ฟีเจอร์ครบครันที่ออกแบบมาเพื่อลดภาระงานของผู้ดูแล และสร้างความอุ่นใจให้ครอบครัว</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl bg-muted border border-border">
+              <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center text-2xl mb-4">🩺</div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Caregiver Dashboard</h3>
+              <p className="text-muted-foreground">บันทึกสัญญาณชีพ, ลายเซ็นดิจิทัลรับยา, และ Pain Body Map ที่ใช้งานง่ายลดข้อผิดพลาด</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-muted border border-border">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl mb-4">👨‍👩‍👧‍👦</div>
+              <h3 className="text-xl font-bold text-foreground mb-2">Family Portal</h3>
+              <p className="text-muted-foreground">Dashboard สำหรับญาติ ดูสถานะ Real-time และปฏิทินนัดหมายร่วมกันอย่างโปร่งใส</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-muted border border-border">
+              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-2xl mb-4">🚨</div>
+              <h3 className="text-xl font-bold text-foreground mb-2">AI Health Data Monitor</h3>
+              <p className="text-muted-foreground">แสดงข้อมูลสุขภาพและสัญญาณเฝ้าระวังเบื้องต้น พร้อมช่องทางส่งต่อให้บุคลากรทางการแพทย์ประเมิน</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-muted border-t border-border py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="relative h-6 w-6 overflow-hidden flex items-center justify-center grayscale opacity-70">
+              <Image src="/logo.png" alt="CareSync Logo" fill className="object-contain" />
+            </div>
+            <span className="text-sm font-semibold text-muted-foreground">© 2026 CareSync. All rights reserved.</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm font-medium">
+            <Link href="/privacy-policy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="text-muted-foreground hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link href="/cookie-policy" className="text-muted-foreground hover:text-foreground transition-colors">Cookie Policy</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

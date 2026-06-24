@@ -1,0 +1,13 @@
+import { enforcePortalAccess } from "@/lib/portal-guard";
+
+export default async function DashboardLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ orgId: string }>;
+}) {
+  const { orgId } = await params;
+  await enforcePortalAccess(orgId, "dashboard");
+  return <>{children}</>;
+}

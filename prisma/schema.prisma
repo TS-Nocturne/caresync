@@ -1,0 +1,570 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==========================================
+// BETTER AUTH - CORE MODELS
+// ==========================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  termsAccepted Boolean  @default(false)
+
+  sessions    Session[]
+  accounts    Account[]
+  members     Member[]
+  invitations Invitation[]
+
+  // Domain Relations
+  activityLogs             ActivityLog[]
+  alerts                   Alert[]            @relation("AlertResolvedBy")
+  patientCaregivers        PatientCaregiver[]
+  patientFamily            PatientFamily[]
+  workspaceInvitesCreated  WorkspaceInvite[]  @relation("InviteCreator")
+  workspaceInvitesAccepted WorkspaceInvite[]  @relation("InviteAcceptor")
+  pushDevices              PushDevice[]
+  calendarEventsCreated    CalendarEvent[]    @relation("EventCreator")
+  calendarEventsAssigned   CalendarEvent[]    @relation("EventAssignee")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ==========================================
+// BETTER AUTH - ORGANIZATION PLUGIN & SAAS
+// ==========================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  metadata  String?
+
+  members          Member[]
+  invitations      Invitation[]
+  workspaceInvites WorkspaceInvite[]
+
+  // SaaS Subscription
+  subscription Subscription?
+
+  // Domain Relations (SaaS Isolation)
+  patients       Patient[]
+  vitalSigns     VitalSign[]
+  medications    Medication[]
+  alerts         Alert[]
+  symptoms       SymptomLog[]
+  painLogs       PainLog[]
+  activityLogs   ActivityLog[]
+  consents       Consent[]
+  vitalSchedules VitalSchedule[]
+  pushDevices    PushDevice[]
+  calendarEvents CalendarEvent[]
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String // 'owner', 'admin', 'member'
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String       @default("pending")
+  expiresAt      DateTime
+  inviterId      String
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// ==========================================
+// SAAS BILLING / SUBSCRIPTION
+// ==========================================
+
+model Subscription {
+  id               String       @id @default(cuid())
+  organizationId   String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stripeCustomerId String?      @unique
+  stripePriceId    String?
+  stripeSubId      String?      @unique
+  plan             PlanTier     @default(FREE)
+  status           SubStatus    @default(ACTIVE)
+  currentPeriodEnd DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model BrainThread {
+  id          String   @id @default(cuid())
+  threadId    String   @unique
+  organizationId String
+  patientId   String
+  alertId     String?
+  createdById String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([organizationId, patientId])
+  @@index([alertId])
+}
+
+enum PlanTier {
+  FREE
+  BASIC
+  PRO
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
+
+enum PortalRole {
+  CAREGIVER
+  FAMILY
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum PineconeSyncStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model WorkspaceInvite {
+  id             String       @id @default(cuid())
+  token          String       @unique @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  portalRole     PortalRole
+  patientId      String?
+  relationLabel  String?
+  createdById    String
+  createdBy      User         @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  expiresAt      DateTime
+  status         InviteStatus @default(PENDING)
+  acceptedById   String?
+  acceptedBy     User?        @relation("InviteAcceptor", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, status])
+}
+
+// ==========================================
+// DOMAIN MODELS (CARESYNC)
+// ==========================================
+
+model Patient {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  firstName   String
+  lastName    String
+  nickname    String?
+  dateOfBirth DateTime
+  gender      String
+  bloodType   String?
+  weightKg    Float?
+  heightCm    Float?
+  roomNumber  String?
+
+  underlyingDiseases String[]       @default([])
+  allergies          String[]       @default([])
+  mobilityStatus     MobilityStatus @default(INDEPENDENT)
+
+  baselineSystolic    Float?
+  baselineDiastolic   Float?
+  baselineTemperature Float?
+  baselineHeartRate   Float?
+  baselineOxygenSat   Float?
+
+  preferredHospital String?
+  hospitalNumber    String?
+  insuranceType     InsuranceType?
+  pineconeSyncStatus PineconeSyncStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  caregivers        PatientCaregiver[]
+  family            PatientFamily[]
+  emergencyContacts EmergencyContact[]
+  vitalSigns        VitalSign[]
+  medications       Medication[]
+  alerts            Alert[]
+  symptoms          SymptomLog[]
+  painLogs          PainLog[]
+  consents          Consent[]
+  vitalSchedules    VitalSchedule[]
+  activityLogs      ActivityLog[]
+  calendarEvents    CalendarEvent[]
+}
+
+enum MobilityStatus {
+  INDEPENDENT
+  ASSISTED
+  WHEELCHAIR
+  BEDBOUND
+}
+
+enum InsuranceType {
+  REIMBURSEMENT
+  SOCIAL_SECURITY
+  SELF_PAY
+}
+
+model EmergencyContact {
+  id        String  @id @default(cuid())
+  patientId String
+  name      String
+  phone     String
+  relation  String?
+  isPrimary Boolean @default(false)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+model PatientCaregiver {
+  id          String    @id @default(cuid())
+  patientId   String
+  userId      String
+  assignedAt  DateTime  @default(now())
+  shiftType   ShiftType @default(FULL)
+  isTemporary Boolean   @default(false)
+  permissions String[]  @default([])
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, userId])
+}
+
+enum ShiftType {
+  MORNING
+  AFTERNOON
+  NIGHT
+  FULL
+}
+
+model PatientFamily {
+  id        String  @id @default(cuid())
+  patientId String
+  userId    String
+  relation  String
+  isPrimary Boolean @default(false)
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, userId])
+}
+
+// ------------------------------------------------------
+// Health Records
+// ------------------------------------------------------
+
+model VitalSign {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  systolic       Float?
+  diastolic      Float?
+  temperature    Float?
+  heartRate      Float?
+  oxygenSat      Float?
+  measuredAt     DateTime     @default(now())
+  notes          String?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model PainLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  bodyPart       String
+  painLevel      Int
+  loggedAt       DateTime     @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+model SymptomLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  symptom        String
+  severity       String?
+  notes          String?
+  loggedAt       DateTime     @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------
+// Medications
+// ------------------------------------------------------
+
+model Medication {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  name           String
+  dosage         String
+  scheduleTime   String
+  timeOfDay      String[]     @default([])
+  instruction    String?
+  status         MedStatus    @default(PENDING)
+  signatureUrl   String?
+  givenAt        DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+enum MedStatus {
+  PENDING
+  GIVEN
+  SKIPPED
+}
+
+// ------------------------------------------------------
+// Alerts & Logs
+// ------------------------------------------------------
+
+model Alert {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  level          AlertLevel
+  title          String
+  description    String
+  actionTaken    String?
+  resolvedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  resolvedById String?
+  resolvedBy   User?   @relation("AlertResolvedBy", fields: [resolvedById], references: [id])
+  patient      Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+}
+
+enum AlertLevel {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String?
+  patient        Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type           LogType
+  title          String
+  description    String
+  userId         String?
+  createdAt      DateTime     @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+enum LogType {
+  VITAL_RECORDED
+  MEDICATION_GIVEN
+  MEDICATION_SKIPPED
+  SYMPTOM_LOGGED
+  ALERT_TRIGGERED
+  CHECK_IN
+  CHECK_OUT
+  SYSTEM_NOTE
+  VITAL_REMINDER
+  CONSENT_GRANTED
+}
+
+// ------------------------------------------------------
+// Consent Management (PDPA / HIPAA)
+// ------------------------------------------------------
+
+enum ConsentType {
+  DATA_SHARING_NURSING
+  DATA_SHARING_FAMILY
+  AI_PROCESSING
+  AI_TRAINING
+  PDPA_GENERAL
+}
+
+model Consent {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consentType       ConsentType
+  granted           Boolean      @default(false)
+  grantedByName     String
+  grantedByRelation String?
+  consentVersion    String       @default("1.0")
+  ipAddress         String?
+  grantedAt         DateTime     @default(now())
+  revokedAt         DateTime?
+
+  @@unique([patientId, consentType, consentVersion])
+  @@index([patientId, consentType])
+}
+
+// ------------------------------------------------------
+// Proactive Vital Reminders
+// ------------------------------------------------------
+
+model VitalSchedule {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  label          String
+  hour           Int
+  minute         Int          @default(0)
+  enabled        Boolean      @default(true)
+
+  @@index([organizationId, hour, minute])
+}
+
+model PushDevice {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token          String
+  platform       String       @default("web")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, token])
+}
+
+// ------------------------------------------------------
+// Calendar & Task Claiming
+// ------------------------------------------------------
+
+enum EventType {
+  VISIT
+  MEDICAL_APPOINTMENT
+  NURSE_SHIFT
+  FAMILY_REQUEST
+  OTHER
+}
+
+enum EventStatus {
+  OPEN
+  ASSIGNED
+  COMPLETED
+  CANCELLED
+}
+
+model CalendarEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patientId      String?
+  patient        Patient?     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  title          String
+  description    String?
+  type           EventType    @default(OTHER)
+  status         EventStatus  @default(ASSIGNED)
+  
+  startTime      DateTime
+  endTime        DateTime
+  
+  creatorId      String
+  creator        User         @relation("EventCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  assigneeId     String?
+  assignee       User?        @relation("EventAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, startTime, endTime])
+}

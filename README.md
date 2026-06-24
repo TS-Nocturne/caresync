@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CareSync - Patient Care SaaS
 
-## Getting Started
+แพลตฟอร์มบริหารจัดการศูนย์ดูแลผู้สูงอายุแบบ multi-tenant พร้อม Caregiver Portal, Family Portal และ Alert Center
 
-First, run the development server:
+## Tech Stack
+
+- Next.js 16 + React 19 + Tailwind CSS 4
+- Prisma 7 + PostgreSQL
+- Better Auth
+- Stripe subscription billing
+
+## Quick Start
+
+### 1. Install dependencies
+
+```bash
+cd patient-care-ui
+npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+ตั้งค่า `DATABASE_URL` และ `BETTER_AUTH_SECRET` ใน `.env`
+
+### 3. Set up database
+
+```bash
+npm run db:migrate
+```
+
+สำหรับ Neon แนะนำให้ตั้ง `DATABASE_URL_UNPOOLED` เป็น direct connection สำหรับ migration
+
+### 4. Run dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+เปิด [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## App Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Description |
+| --- | --- |
+| `/` | Landing page |
+| `/login`, `/signup` | Authentication |
+| `/onboarding` | สร้าง workspace ใหม่ |
+| `/dashboard` | Redirect ไป org dashboard |
+| `/{orgId}/dashboard` | Workspace dashboard |
+| `/{orgId}/caregiver` | บันทึกสัญญาณชีพ ยา และ Pain Map |
+| `/{orgId}/family` | Family portal |
+| `/{orgId}/alert` | Alert center + AI risk |
 
-## Learn More
+## API Routes
 
-To learn more about Next.js, take a look at the following resources:
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/patients?orgId=` | GET | รายชื่อผู้ป่วยพร้อมสถานะ |
+| `/api/vitals?orgId=&patientId=` | GET | ประวัติสัญญาณชีพ |
+| `/api/vitals` | POST | บันทึกสัญญาณชีพและสร้าง alert อัตโนมัติ |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev
+npm run build
+npm run db:migrate
+npm run db:migrate:deploy
+npm run db:setup
+```
 
-## Deploy on Vercel
+## Security
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Middleware ป้องกัน routes ที่ต้อง login
+- API routes ตรวจสอบ session และ org membership
+- สัญญาณชีพผิดปกติสร้าง alert อัตโนมัติ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## LINE LIFF Setup
+
+Set these values in `.env`:
+
+```bash
+NEXT_PUBLIC_LINE_LIFF_ID=""
+LINE_CHANNEL_SECRET=""
+LINE_CHANNEL_ACCESS_TOKEN=""
+```
+
+In LINE Developers Console:
+
+- Set the LIFF endpoint URL to `https://your-domain.com/liff`.
+- Set the Messaging API webhook URL to `https://your-domain.com/api/line/webhook`.
+- For local testing, expose the dev server with a HTTPS tunnel such as ngrok and use the tunnel URL.
