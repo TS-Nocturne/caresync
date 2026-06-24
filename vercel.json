@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/vital-reminders",
-      "schedule": "*/15 * * * *"
+      "path": "/api/your-cron-route",
+      "schedule": "0 0 * * *"
     }
   ]
 }
