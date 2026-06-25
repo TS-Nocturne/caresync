@@ -36,9 +36,11 @@ export async function getPortalAccess(
 ): Promise<PortalAccess | null> {
   const member = await prisma.member.findUnique({
     where: { userId_organizationId: { userId, organizationId: orgId } },
+    include: { organization: { select: { deletedAt: true } } },
   });
 
   if (!member) return null;
+  if (member.organization.deletedAt) return null;
 
   const isOwner = member.role === "owner";
   const isAdmin = member.role === "admin";

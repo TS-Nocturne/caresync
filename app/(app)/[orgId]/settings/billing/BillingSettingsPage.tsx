@@ -1,39 +1,91 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+type BillingInterval = "month" | "semi_annual" | "year";
+
+interface BillingPlan {
+  plan: "PRO";
+  interval: BillingInterval;
+  label: string;
+  priceLabel: string;
+  maxMembers: number;
+  stripePriceId: string;
+}
 
 interface BillingData {
   plan: string;
   status: string;
+  currentInterval: BillingInterval | null;
   memberCount: number;
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   limits: { label: string; priceLabel: string; maxMembers: number };
-  plans: Array<{ plan: string; label: string; priceLabel: string; maxMembers: number }>;
+  plans: BillingPlan[];
   stripeConfigured: boolean;
   hasStripeCustomer: boolean;
   isTrial: boolean;
+}
+
+const PLAN_COPY: Record<
+  BillingInterval,
+  { name: string; price: string; cadence: string; note: string; savings?: string }
+> = {
+  month: {
+    name: "รายเดือน",
+    price: "฿299",
+    cadence: "ต่อเดือน",
+    note: "เหมาะกับการเริ่มต้นและปรับเปลี่ยนได้เร็ว",
+  },
+  semi_annual: {
+    name: "6 เดือน",
+    price: "฿1,500",
+    cadence: "ต่อ 6 เดือน",
+    note: "เฉลี่ย ฿250 ต่อเดือน",
+    savings: "ประหยัดกว่า",
+  },
+  year: {
+    name: "รายปี",
+    price: "฿2,400",
+    cadence: "ต่อปี",
+    note: "เฉลี่ย ฿200 ต่อเดือน",
+    savings: "คุ้มสุด",
+  },
+};
+
+function formatDate(value: string | null) {
+  if (!value) return "ยังไม่มีข้อมูล";
+  return new Date(value).toLocaleDateString("th-TH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export default function BillingSettingsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const orgId = params.orgId as string;
-  
+
   const [data, setData] = useState<BillingData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [interval, setInterval] = useState<"month" | "semi_annual" | "year">("year");
+  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>("year");
+  const [confirmInterval, setConfirmInterval] = useState<BillingInterval | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/billing?orgId=${orgId}`, { cache: "no-store" });
     const json = await res.json();
-    if (res.ok) setData(json.data);
-    else setError(json.error);
+    if (res.ok) {
+      setData(json.data);
+      setSelectedInterval(json.data.currentInterval ?? "year");
+      setError("");
+    } else {
+      setError(json.error || "โหลดข้อมูล Billing ไม่สำเร็จ");
+    }
   }, [orgId]);
 
   useEffect(() => {
@@ -43,259 +95,269 @@ export default function BillingSettingsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [load]);
 
-  const upgrade = async () => {
-    setLoading("upgrade");
+  const activeInterval = data?.currentInterval;
+  const pendingPlan = confirmInterval ? PLAN_COPY[confirmInterval] : null;
+  const confirmActionLabel = useMemo(() => {
+    if (!data || !confirmInterval) return "";
+    if (!data.hasStripeCustomer) return "ยืนยันและไปชำระเงิน";
+    if (data.cancelAtPeriodEnd && data.currentInterval === confirmInterval) return "ยืนยันใช้งานต่อ";
+    return "ยืนยันเปลี่ยนแผน";
+  }, [confirmInterval, data]);
+
+  const submitPlanChange = async () => {
+    if (!confirmInterval) return;
+    setLoading(`plan-${confirmInterval}`);
     setError("");
+
     try {
       const res = await fetch("/api/billing", {
-        method: "POST",
+        method: data?.hasStripeCustomer ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, plan: "PRO", interval }),
+        body: JSON.stringify({ orgId, plan: "PRO", interval: confirmInterval }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      if (json.data?.url) window.location.href = json.data.url;
-      else {
-        setError("");
-        load();
+      if (!res.ok) throw new Error(json.error || "เปลี่ยนแผนไม่สำเร็จ");
+
+      if (json.data?.url) {
+        window.location.href = json.data.url;
+        return;
       }
+
+      setConfirmInterval(null);
+      await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "อัปเกรดไม่สำเร็จ");
+      setError(err instanceof Error ? err.message : "เปลี่ยนแผนไม่สำเร็จ");
     } finally {
       setLoading(null);
     }
   };
 
-  const openPortal = async () => {
-    setPortalLoading(true);
+  const cancelAtPeriodEnd = async () => {
+    setLoading("cancel");
+    setError("");
+
     try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
+      const res = await fetch("/api/billing", {
+        method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to open portal");
-      if (json.data?.url) window.location.href = json.data.url;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "เกิดข้อผิดพลาดในการเปิด Portal");
-    } finally {
-      setPortalLoading(false);
-    }
-  };
+      if (!res.ok) throw new Error(json.error || "ยกเลิกแผนไม่สำเร็จ");
 
-  const pricing = {
-    month: { price: "฿299", suffix: "/เดือน", savings: null },
-    semi_annual: { price: "฿1,500", suffix: "/6 เดือน", savings: "ตกเดือนละ ฿250" },
-    year: { price: "฿2,400", suffix: "/ปี", savings: "ตกเดือนละ ฿200 — ประหยัด 33%" },
+      setShowCancelModal(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ยกเลิกแผนไม่สำเร็จ");
+    } finally {
+      setLoading(null);
+    }
   };
 
   return (
     <>
-      <main className="pt-24 pb-12 max-w-3xl mx-auto px-4 sm:px-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="mb-8">
           <h1 className="text-2xl font-bold">การเรียกเก็บเงิน (Billing & Subscription)</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            จัดการแพ็กเกจและข้อมูลการชำระเงินของ Workspace
+            ดูแผนปัจจุบัน เปลี่ยนรอบชำระเงิน และยกเลิกการต่ออายุรอบถัดไป
           </p>
           {searchParams.get("success") && (
-            <p className="mt-2 text-sm text-emerald-600 font-medium p-3 bg-emerald-50 rounded-lg">ชำระเงินสำเร็จ — ขอบคุณที่ไว้วางใจ CareSync ครับ!</p>
+            <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+              ชำระเงินสำเร็จ ระบบจะอัปเดตข้อมูลหลัง Stripe ยืนยันรายการ
+            </p>
           )}
           {searchParams.get("canceled") && (
-            <p className="mt-2 text-sm text-rose-600 font-medium p-3 bg-rose-50 rounded-lg">ทำรายการไม่สำเร็จ หรือถูกยกเลิก</p>
+            <p className="mt-3 rounded-lg bg-rose-50 p-3 text-sm font-medium text-rose-700">
+              รายการชำระเงินถูกยกเลิก
+            </p>
           )}
           <Link href={`/${orgId}/settings/team`} className="text-sm text-primary hover:underline mt-4 inline-block">
-            ← กลับจัดการทีม
+            กลับไปจัดการทีม
           </Link>
         </div>
 
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-rose-50 text-rose-600 text-sm">{error}</div>
-        )}
+        {error && <div className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
         {data && (
           <>
-            {data.hasStripeCustomer ? (
-              // ACTIVE SUBSCRIPTION UI
-              <div className="bg-card border border-border rounded-2xl p-6 mb-6 shadow-sm">
-                <p className="text-sm text-muted-foreground">แพ็กเกจปัจจุบัน</p>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-2xl font-bold text-primary">CareSync Pro</p>
-                  {data.status === "ACTIVE" && (
-                    <span className="bg-emerald-100 text-emerald-700 text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">Active</span>
+            <section className="mb-6 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">แผนที่ใช้อยู่ตอนนี้</p>
+                  <h2 className="mt-1 text-2xl font-bold text-foreground">
+                    {data.plan === "PRO" ? "CareSync Pro" : "ยังไม่มีแพ็กเกจ"}
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    รอบชำระเงิน:{" "}
+                    <span className="font-semibold text-foreground">
+                      {activeInterval ? PLAN_COPY[activeInterval].name : data.isTrial ? "ทดลองใช้งาน" : "-"}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    วันหมดรอบปัจจุบัน:{" "}
+                    <span className="font-semibold text-foreground">{formatDate(data.currentPeriodEnd)}</span>
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                    {data.status}
+                  </span>
+                  {data.cancelAtPeriodEnd && (
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800">
+                      ไม่ต่ออายุ
+                    </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground mt-4 font-medium">
-                  วันที่บิลถัดไปจะตัดเงิน: <span className="text-foreground">{data.currentPeriodEnd ? new Date(data.currentPeriodEnd).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : "N/A"}</span>
-                </p>
-                <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center gap-4">
-                  <button 
-                    onClick={openPortal} 
-                    disabled={portalLoading}
-                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-100 text-slate-900 text-sm font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50"
-                  >
-                    {portalLoading ? "กำลังโหลด..." : "จัดการบัตรเครดิต & การสมัครสมาชิก"}
-                  </button>
+              </div>
+
+              {data.cancelAtPeriodEnd && (
+                <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  แผนนี้ถูกตั้งให้ยกเลิกเมื่อหมดรอบวันที่ {formatDate(data.currentPeriodEnd)} และจะไม่เรียกเก็บเงินรอบถัดไป
+                </div>
+              )}
+            </section>
+
+            <section className="mb-6">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold">เลือกแผนการชำระเงิน</h2>
+                  <p className="text-sm text-muted-foreground">
+                    หากเปลี่ยนแผน ระบบจะใช้ราคาใหม่ในการเรียกเก็บเงินเมื่อรอบปัจจุบันหมดอายุ
+                  </p>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  สมาชิกปัจจุบัน {data.memberCount} คน
                 </div>
               </div>
-            ) : (
-              // UPGRADE UI
-              <>
-                {/* Trial Banner */}
-                {!data.hasStripeCustomer && data.plan === "PRO" && data.status === "ACTIVE" && data.currentPeriodEnd && new Date(data.currentPeriodEnd) > new Date() && (
-                  <div className="mb-8 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start gap-3">
-                    <div className="text-emerald-500 mt-0.5">⏱️</div>
-                    <div>
-                      <p className="text-emerald-800 font-bold text-sm">คุณกำลังอยู่ในช่วงทดลองใช้ฟรี</p>
-                      <p className="text-emerald-600 text-xs mt-1">
-                        ทดลองใช้ฟรีถึงวันที่ {new Date(data.currentPeriodEnd).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} — สมัครสมาชิกวันนี้เพื่อให้การใช้งานลื่นไหลไม่มีสะดุด
-                      </p>
-                    </div>
-                  </div>
-                )}
 
-                {/* Toggle Switch */}
-                <div className="flex justify-center mb-8">
-                  <div className="bg-slate-200 p-1 rounded-full flex relative overflow-hidden max-w-full w-[460px]">
-                    <div 
-                      className="absolute top-1 bottom-1 w-[33.33%] bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out"
-                      style={{
-                        transform: interval === "month" ? "translateX(0%)" : interval === "semi_annual" ? "translateX(100%)" : "translateX(200%)",
+              <div className="grid gap-4 md:grid-cols-3">
+                {data.plans.map((plan) => {
+                  const copy = PLAN_COPY[plan.interval];
+                  const isCurrent = data.hasStripeCustomer && activeInterval === plan.interval && !data.cancelAtPeriodEnd;
+                  const isResume = data.cancelAtPeriodEnd && activeInterval === plan.interval;
+                  const isSelected = selectedInterval === plan.interval;
+
+                  return (
+                    <button
+                      key={plan.interval}
+                      type="button"
+                      onClick={() => {
+                        setSelectedInterval(plan.interval);
+                        if (!isCurrent) setConfirmInterval(plan.interval);
                       }}
-                    />
-                    <button
-                      onClick={() => setInterval("month")}
-                      className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors ${interval === "month" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
+                      className={`relative rounded-2xl border p-5 text-left transition-all ${
+                        isCurrent || isSelected
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-card hover:border-primary/50 hover:bg-muted/40"
+                      }`}
                     >
-                      รายเดือน
-                    </button>
-                    <button
-                      onClick={() => setInterval("semi_annual")}
-                      className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors ${interval === "semi_annual" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
-                    >
-                      6 เดือน
-                    </button>
-                    <button
-                      onClick={() => setInterval("year")}
-                      className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1 ${interval === "year" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
-                    >
-                      รายปี <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${interval === "year" ? "bg-emerald-100 text-emerald-700" : "bg-slate-300 text-slate-700"}`}>-33%</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 mb-6 shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500/20 to-transparent w-64 h-64 blur-3xl -z-10 rounded-full" />
-                  
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
-                    <div>
-                      <div className="inline-block bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3">
-                        {interval === "year" ? "Best Value" : "CareSync Pro"}
+                      {copy.savings && (
+                        <span className="absolute right-4 top-4 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                          {copy.savings}
+                        </span>
+                      )}
+                      <div className="pr-20">
+                        <h3 className="text-base font-bold text-foreground">{copy.name}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{copy.note}</p>
                       </div>
-                      <h3 className="text-2xl font-bold text-white">อัปเกรดเป็นสมาชิกระยะยาว</h3>
-                      <p className="text-slate-400 text-sm mt-1">ใช้งานไม่จำกัดสมาชิก พร้อม AI ดูแล</p>
-                    </div>
-                    
-                    <div className="text-left sm:text-right">
-                      <div className="text-4xl font-extrabold text-white transition-all">
-                        {pricing[interval].price} <span className="text-lg font-medium text-slate-400">{pricing[interval].suffix}</span>
+                      <div className="mt-6">
+                        <span className="text-3xl font-extrabold text-foreground">{copy.price}</span>
+                        <span className="ml-1 text-sm text-muted-foreground">{copy.cadence}</span>
                       </div>
-                      <div className="h-6 mt-1">
-                        {pricing[interval].savings && (
-                          <span className="text-emerald-400 text-sm font-medium">{pricing[interval].savings}</span>
+                      <div className="mt-5">
+                        {isCurrent ? (
+                          <span className="inline-flex rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                            กำลังใช้งาน
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground">
+                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeCustomer ? "เปลี่ยนเป็นแผนนี้" : "เลือกแผนนี้"}
+                          </span>
                         )}
                       </div>
-                    </div>
-                  </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
-                  <div className="bg-slate-800/50 rounded-2xl p-4 mb-6">
-                    <label className="flex items-start gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={termsAccepted}
-                        onChange={(e) => setTermsAccepted(e.target.checked)}
-                        className="mt-1 w-5 h-5 rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
-                      />
-                      <span className="text-sm text-slate-300 leading-relaxed">
-                        ฉันยอมรับเงื่อนไขการสมัครสมาชิก และเข้าใจว่าระบบจะต่ออายุอัตโนมัติ (สามารถยกเลิกได้ตลอดเวลา)
-                      </span>
-                    </label>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={loading !== null || !termsAccepted}
-                    onClick={upgrade}
-                    className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg hover:bg-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
-                  >
-                    {loading === "upgrade" ? "กำลังดำเนินการ..." : "สมัครสมาชิก CareSync Pro"}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {data.hasStripeCustomer && data.plan === "PRO" && (
-              <div className="text-center mt-12 mb-4">
-                <button 
-                  onClick={() => setShowCancelModal(true)} 
-                  className="text-sm font-medium text-muted-foreground hover:text-rose-600 transition-colors underline decoration-muted-foreground/30 hover:decoration-rose-600/50 underline-offset-4"
+            {data.hasStripeCustomer && !data.cancelAtPeriodEnd && (
+              <div className="mb-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  className="text-sm font-semibold text-muted-foreground underline underline-offset-4 transition-colors hover:text-rose-600"
                 >
-                  ยกเลิกการสมัครสมาชิก (Cancel Subscription)
+                  ยกเลิกแผนเมื่อหมดรอบปัจจุบัน
                 </button>
               </div>
             )}
 
             {!data.stripeConfigured && (
-              <p className="text-xs text-muted-foreground mt-6 text-center">
-                โหมด dev: อัปเกรดได้ทันทีโดยไม่ผ่าน Stripe (ตั้งค่า STRIPE_* ใน .env สำหรับ production)
+              <p className="mt-6 text-center text-xs text-muted-foreground">
+                Dev mode: ยังไม่ได้ตั้งค่า Stripe ครบ ระบบจะจำลองการเปลี่ยนแผนในฐานข้อมูล
               </p>
             )}
           </>
         )}
       </main>
 
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-card rounded-3xl p-8 max-w-md w-full shadow-2xl border border-border relative">
-            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-xl mb-6">
-              ⚠️
-            </div>
-            <h2 className="text-xl font-bold text-foreground mb-3">ยืนยันการยกเลิกการสมัครสมาชิก</h2>
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-              แพ็กเกจ CareSync Pro ของคุณจะยังคงใช้งานได้เต็มรูปแบบไปจนถึงวันที่ <span className="font-semibold text-foreground">{data?.currentPeriodEnd ? new Date(data.currentPeriodEnd).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : ""}</span>
+      {confirmInterval && pendingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-foreground">ยืนยันการเปลี่ยนแผน</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              คุณกำลังเลือกแผน {pendingPlan.name} ราคา {pendingPlan.price} {pendingPlan.cadence}
+              {data?.hasStripeCustomer
+                ? " ระบบจะยังไม่เรียกเก็บเงินทันที และจะใช้แผนใหม่นี้เมื่อรอบปัจจุบันหมดอายุ"
+                : " ระบบจะพาไปหน้าชำระเงินเพื่อเริ่มใช้งานแผนนี้"}
             </p>
-            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-              หลังจากนั้น บัญชีของคุณจะถูกปรับเป็น <span className="font-semibold">โหมดอ่านข้อมูล (Read-Only)</span> โดยมีผลกระทบดังนี้:
-            </p>
-            
-            <ul className="space-y-3 text-sm text-muted-foreground mb-8 bg-muted/50 p-4 rounded-2xl">
-              <li className="flex items-start gap-3">
-                <span className="text-rose-500 shrink-0">❌</span> 
-                <span>ไม่สามารถบันทึกสัญญาณชีพ อาการ หรือตารางยาใหม่ได้</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-rose-500 shrink-0">❌</span> 
-                <span>ระบบ AI สำหรับแสดงข้อมูลเฝ้าระวังเบื้องต้นจะหยุดทำงาน</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-emerald-500 shrink-0">✅</span> 
-                <span>ข้อมูลประวัติสุขภาพเดิมทั้งหมดจะยังคงปลอดภัย และเปิดดูย้อนหลังได้เสมอ</span>
-              </li>
-            </ul>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button 
-                onClick={openPortal} 
-                className="flex-1 py-3 px-4 rounded-xl border-2 border-rose-100 text-rose-600 bg-rose-50/50 font-semibold hover:bg-rose-100 hover:border-rose-200 transition-colors"
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setConfirmInterval(null)}
+                className="flex-1 rounded-xl border border-border px-4 py-3 text-sm font-semibold hover:bg-muted"
               >
-                ยืนยันการยกเลิก
+                ย้อนกลับ
               </button>
-              <button 
-                onClick={() => setShowCancelModal(false)}
-                className="flex-1 py-3 px-4 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20"
+              <button
+                type="button"
+                onClick={submitPlanChange}
+                disabled={loading !== null}
+                className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:opacity-50"
               >
-                ใช้งาน Pro ต่อไป
+                {loading ? "กำลังดำเนินการ..." : confirmActionLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCancelModal && data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-foreground">ยืนยันการยกเลิกแผน</h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              ระบบจะไม่เรียกเก็บเงินในรอบถัดไป คุณยังใช้งาน CareSync Pro ได้จนถึงวันที่{" "}
+              <span className="font-semibold text-foreground">{formatDate(data.currentPeriodEnd)}</span>
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={cancelAtPeriodEnd}
+                disabled={loading !== null}
+                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+              >
+                {loading === "cancel" ? "กำลังยกเลิก..." : "ยืนยันยกเลิก"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+              >
+                ใช้งานต่อ
               </button>
             </div>
           </div>

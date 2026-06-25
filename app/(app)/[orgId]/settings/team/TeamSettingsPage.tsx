@@ -30,12 +30,16 @@ export default function TeamSettingsPage() {
   const [invites, setInvites] = useState<InviteRow[]>([]);
   const [plan, setPlan] = useState("FREE");
   const [memberCount, setMemberCount] = useState(0);
+  const [organizationName, setOrganizationName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [creating, setCreating] = useState<"CAREGIVER" | "FAMILY" | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [memberToRevoke, setMemberToRevoke] = useState<MemberRow | null>(null);
   const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null);
+  const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
+  const [deleteRoomName, setDeleteRoomName] = useState("");
+  const [deletingRoom, setDeletingRoom] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +53,7 @@ export default function TeamSettingsPage() {
       if (!invitesRes.ok) throw new Error(invitesJson.error);
       setError("");
       setMembers(membersJson.data ?? []);
+      setOrganizationName(membersJson.organizationName ?? "");
       setInvites(invitesJson.data ?? []);
       setPlan(invitesJson.plan ?? "FREE");
       setMemberCount(invitesJson.memberCount ?? 0);
@@ -118,6 +123,26 @@ export default function TeamSettingsPage() {
     }
   };
 
+  const deleteRoom = async () => {
+    setDeletingRoom(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await fetch("/api/workspace/room", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, confirmName: deleteRoomName }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "ลบห้องไม่สำเร็จ");
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "ลบห้องไม่สำเร็จ");
+      setDeletingRoom(false);
+    }
+  };
+
   const copyLink = async (url: string) => {
     await navigator.clipboard.writeText(url);
     setCopied(url);
@@ -165,6 +190,27 @@ export default function TeamSettingsPage() {
             <p className="text-sm text-muted-foreground">เฉพาะแอดมิน (เจ้าของแพลน) — อัปเกรดเพื่อเพิ่มสิทธิ์การเชิญสมาชิก</p>
           </div>
         </Link>
+
+        <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/20">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-rose-900 dark:text-rose-200">ลบห้องนี้</h2>
+              <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">
+                ห้องจะถูกปิดการใช้งาน และสมาชิกครอบครัว/พยาบาลจะเห็นว่าห้องนี้ถูกลบแล้ว
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteRoomName("");
+                setShowDeleteRoomModal(true);
+              }}
+              className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
+            >
+              ลบห้อง
+            </button>
+          </div>
+        </section>
 
         <section className="bg-card border border-border rounded-2xl p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">สร้างลิงก์เชิญ (Invite Link)</h2>
@@ -257,6 +303,65 @@ export default function TeamSettingsPage() {
           </div>
         </section>
       </main>
+
+      {showDeleteRoomModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-room-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in">
+            <div className="mb-5 flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                !
+              </div>
+              <div>
+                <h2 id="delete-room-title" className="text-lg font-bold text-foreground">
+                  ยืนยันการลบห้อง
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  คุณกำลังจะลบห้อง <span className="font-semibold text-foreground">{organizationName}</span>{" "}
+                  สมาชิกครอบครัวและพยาบาลจะเห็นว่าห้องนี้ถูกลบแล้ว และสามารถเอาห้องออกจากเมนูของตัวเองได้
+                </p>
+              </div>
+            </div>
+
+            <label className="mb-2 block text-sm font-semibold text-foreground">
+              พิมพ์ชื่อห้องเพื่อยืนยัน
+            </label>
+            <input
+              value={deleteRoomName}
+              onChange={(e) => setDeleteRoomName(e.target.value)}
+              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+              placeholder={organizationName || "ชื่อห้อง"}
+              autoFocus
+            />
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteRoomModal(false)}
+                disabled={deletingRoom}
+                className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={deleteRoom}
+                disabled={deletingRoom || deleteRoomName.trim() !== organizationName}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingRoom && (
+                  <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
+                )}
+                ยืนยันลบห้อง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {memberToRevoke && (
         <div

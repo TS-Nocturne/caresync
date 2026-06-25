@@ -25,12 +25,12 @@ export default async function OrgLayout(props: {
   }
 
   const [org, member, sub] = await Promise.all([
-    prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }),
+    prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, deletedAt: true } }),
     prisma.member.findUnique({ where: { userId_organizationId: { userId: session.user.id, organizationId: orgId } } }),
     prisma.subscription.findUnique({ where: { organizationId: orgId } })
   ]);
 
-  if (!org || !member) {
+  if (!org || !member || org.deletedAt) {
     redirect("/dashboard");
   }
 
@@ -45,7 +45,7 @@ export default async function OrgLayout(props: {
 
   if (plan === "FREE") {
     isReadOnly = true;
-  } else if (status === "CANCELED" || status === "PAST_DUE" || (sub?.currentPeriodEnd && sub.currentPeriodEnd < new Date())) {
+  } else if (status === "PAST_DUE" || (sub?.currentPeriodEnd && sub.currentPeriodEnd < new Date())) {
     const expiredAt = sub?.currentPeriodEnd ? sub.currentPeriodEnd.getTime() : 0;
     const now = new Date().getTime();
     

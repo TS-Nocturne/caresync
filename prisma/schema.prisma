@@ -87,6 +87,8 @@ model Organization {
   logo      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  deletedById String?
   metadata  String?
 
   members          Member[]
@@ -150,6 +152,7 @@ model Subscription {
   stripeSubId      String?      @unique
   plan             PlanTier     @default(FREE)
   status           SubStatus    @default(ACTIVE)
+  cancelAtPeriodEnd Boolean     @default(false)
   currentPeriodEnd DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt

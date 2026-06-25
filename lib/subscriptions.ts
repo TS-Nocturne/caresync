@@ -45,6 +45,9 @@ export function getEffectivePlan(subscription: Subscription, now = new Date()): 
 }
 
 export function getEffectiveSubscriptionStatus(subscription: Subscription, now = new Date()) {
+  if (isSubscriptionActive(subscription, now) && subscription.cancelAtPeriodEnd) {
+    return "CANCELING";
+  }
   if (isSubscriptionActive(subscription, now)) return subscription.status;
   return "EXPIRED";
 }

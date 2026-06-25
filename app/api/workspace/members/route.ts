@@ -20,6 +20,11 @@ export async function GET(request: Request) {
 
     await requireOwner(orgId, session.user.id);
 
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true },
+    });
+
     const members = await prisma.member.findMany({
       where: { organizationId: orgId },
       include: {
@@ -46,7 +51,7 @@ export async function GET(request: Request) {
       })
     );
 
-    return NextResponse.json({ data: enriched });
+    return NextResponse.json({ data: enriched, organizationName: organization?.name ?? "" });
   } catch (error) {
     return apiError(error, "Failed to list members");
   }

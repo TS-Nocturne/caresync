@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getStripe, STRIPE_PRICE_IDS } from "@/lib/stripe";
+import { getStripe, stripePriceIdForInterval, type BillingInterval } from "@/lib/stripe";
 
 const BILLING_INTERVAL_DAYS = {
   month: 30,
   semi_annual: 180,
   year: 365,
-} as const;
-
-type BillingInterval = keyof typeof BILLING_INTERVAL_DAYS;
+} as const satisfies Record<BillingInterval, number>;
 
 function isBillingInterval(value: unknown): value is BillingInterval {
   return typeof value === "string" && value in BILLING_INTERVAL_DAYS;
 }
 
 function priceIdForInterval(interval: BillingInterval) {
-  if (interval === "month") return STRIPE_PRICE_IDS.PRO_MONTHLY;
-  if (interval === "semi_annual") return STRIPE_PRICE_IDS.PRO_SEMI_ANNUAL;
-  return STRIPE_PRICE_IDS.PRO_ANNUAL;
+  return stripePriceIdForInterval(interval);
 }
 
 function fallbackPeriodEnd(interval: BillingInterval) {
@@ -29,12 +25,14 @@ async function getStripeSubscriptionDetails(subscriptionId: string | null) {
   if (!stripe || !subscriptionId) return null;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const raw = subscription as unknown as {
+    const raw = subscription as unknown as {
+    cancel_at_period_end?: boolean;
     current_period_end?: number;
     items?: { data?: Array<{ price?: { id?: string } }> };
   };
 
   return {
+    cancelAtPeriodEnd: Boolean(raw.cancel_at_period_end),
     currentPeriodEnd:
       typeof raw.current_period_end === "number"
         ? new Date(raw.current_period_end * 1000)
@@ -122,6 +120,7 @@ export async function POST(request: Request) {
         stripeCustomerId: stripeCustomerId ?? undefined,
         stripeSubId: stripeSubId ?? undefined,
         stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
+        cancelAtPeriodEnd: false,
         currentPeriodEnd,
       },
       create: {
@@ -131,6 +130,7 @@ export async function POST(request: Request) {
         stripeCustomerId: stripeCustomerId ?? undefined,
         stripeSubId: stripeSubId ?? undefined,
         stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
+        cancelAtPeriodEnd: false,
         currentPeriodEnd,
       },
     });
@@ -152,6 +152,7 @@ export async function POST(request: Request) {
           where: { stripeSubId },
           data: {
             status: "ACTIVE",
+            cancelAtPeriodEnd: stripeDetails.cancelAtPeriodEnd,
             stripePriceId: stripeDetails.priceId ?? undefined,
             currentPeriodEnd: stripeDetails.currentPeriodEnd,
           },
