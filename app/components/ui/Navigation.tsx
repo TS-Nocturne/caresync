@@ -24,10 +24,10 @@ export default function Navigation() {
   const { access } = usePortalAccess(orgId);
 
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceMini[]>([]);
-  const [showSwitcher, setShowSwitcher] = useState(false);
-  const switcherRef = useRef<HTMLDivElement>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all workspaces for the switcher dropdown
+  // Fetch all workspaces for the profile dropdown
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
@@ -50,21 +50,21 @@ export default function Navigation() {
     return () => { cancelled = true; };
   }, [session]);
 
-  // Close switcher on outside click
+  // Close profile menu on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (switcherRef.current && !switcherRef.current.contains(e.target as Node)) {
-        setShowSwitcher(false);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
       }
     }
-    if (showSwitcher) {
+    if (showProfileMenu) {
       document.addEventListener("mousedown", handleClick);
       return () => document.removeEventListener("mousedown", handleClick);
     }
-  }, [showSwitcher]);
+  }, [showProfileMenu]);
 
   const handleSwitchWorkspace = useCallback(async (ws: WorkspaceMini) => {
-    setShowSwitcher(false);
+    setShowProfileMenu(false);
     try {
       await organization.setActive({ organizationId: ws.id });
     } catch {
@@ -126,65 +126,69 @@ export default function Navigation() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-          {/* Workspace Switcher */}
-          {allWorkspaces.length > 1 && (
-            <div className="workspace-switcher" ref={switcherRef}>
-              <button
-                className="workspace-switcher__trigger"
-                onClick={() => setShowSwitcher(!showSwitcher)}
-                aria-label="สลับบ้าน"
-                id="workspace-switcher-trigger"
-              >
-                <span>🏠</span>
-                <span className="hidden sm:inline">สลับบ้าน</span>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                </svg>
-              </button>
-
-              {showSwitcher && (
-                <div className="workspace-switcher__dropdown">
-                  {allWorkspaces.map((ws) => (
-                    <button
-                      key={ws.id}
-                      className={`workspace-switcher__item ${ws.id === orgId ? "workspace-switcher__item--active" : ""}`}
-                      onClick={() => handleSwitchWorkspace(ws)}
-                      id={`workspace-switch-${ws.id}`}
-                    >
-                      <div className="workspace-switcher__item-icon" style={{ background: ws.id === orgId ? "rgba(255,255,255,0.2)" : "var(--muted)" }}>
-                        🏠
-                      </div>
-                      <div>
-                        <div className="workspace-switcher__item-name">{ws.name}</div>
-                        <div className="workspace-switcher__item-role">
-                          {ws.role === "owner" ? "เจ้าของ" : ws.role === "admin" ? "ผู้ดูแลระบบ" : "พยาบาล/ผู้ดูแล"}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="hidden md:flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
-              {session?.user?.name?.charAt(0) || "U"}
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground leading-none">
-                {session?.user?.name || "Loading..."}
+          <div className="workspace-switcher" ref={profileMenuRef}>
+            <button
+              className="workspace-switcher__trigger"
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              aria-label="โปรไฟล์ผู้ใช้"
+              id="profile-menu-trigger"
+            >
+              <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                {session?.user?.name?.charAt(0) || "U"}
               </span>
-              <span className="text-xs text-muted-foreground">{access?.roleLabel ?? "..."}</span>
-            </div>
-          </div>
+              <span className="hidden md:flex min-w-0 flex-col text-left">
+                <span className="max-w-32 truncate text-sm font-medium text-foreground leading-none">
+                  {session?.user?.name || "Loading..."}
+                </span>
+                <span className="text-xs text-muted-foreground">{access?.roleLabel ?? "..."}</span>
+              </span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
 
-          <button
-            onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}
-            className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
-          >
-            ออกจากระบบ
-          </button>
+            {showProfileMenu && (
+              <div className="workspace-switcher__dropdown">
+                <div className="px-4 py-3 border-b border-border">
+                  <div className="text-sm font-semibold text-foreground">{session?.user?.name || "User"}</div>
+                  <div className="mt-1 truncate text-xs text-muted-foreground">{session?.user?.email}</div>
+                </div>
+
+                {allWorkspaces.length > 1 && (
+                  <div className="py-2">
+                    <div className="px-4 pb-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                      สลับบ้าน
+                    </div>
+                    {allWorkspaces.map((ws) => (
+                      <button
+                        key={ws.id}
+                        className={`workspace-switcher__item ${ws.id === orgId ? "workspace-switcher__item--active" : ""}`}
+                        onClick={() => handleSwitchWorkspace(ws)}
+                        id={`workspace-switch-${ws.id}`}
+                      >
+                        <div className="workspace-switcher__item-icon" style={{ background: ws.id === orgId ? "rgba(255,255,255,0.2)" : "var(--muted)" }}>
+                          🏠
+                        </div>
+                        <div>
+                          <div className="workspace-switcher__item-name">{ws.name}</div>
+                          <div className="workspace-switcher__item-role">
+                            {ws.role === "owner" ? "เจ้าของ" : ws.role === "admin" ? "ผู้ดูแลระบบ" : "พยาบาล/ผู้ดูแล"}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}
+                  className="w-full border-t border-border px-4 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  ออกจากระบบ
+                </button>
+              </div>
+            )}
+          </div>
 
           <ThemeToggle />
         </div>
