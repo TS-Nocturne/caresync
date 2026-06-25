@@ -26,6 +26,7 @@ interface BillingData {
   plans: BillingPlan[];
   stripeConfigured: boolean;
   hasStripeCustomer: boolean;
+  hasStripeSubscription: boolean;
   isTrial: boolean;
 }
 
@@ -99,7 +100,7 @@ export default function BillingSettingsPage() {
   const pendingPlan = confirmInterval ? PLAN_COPY[confirmInterval] : null;
   const confirmActionLabel = useMemo(() => {
     if (!data || !confirmInterval) return "";
-    if (!data.hasStripeCustomer) return "ยืนยันและไปชำระเงิน";
+    if (!data.hasStripeSubscription) return "ยืนยันและไปชำระเงิน";
     if (data.cancelAtPeriodEnd && data.currentInterval === confirmInterval) return "ยืนยันใช้งานต่อ";
     return "ยืนยันเปลี่ยนแผน";
   }, [confirmInterval, data]);
@@ -111,7 +112,7 @@ export default function BillingSettingsPage() {
 
     try {
       const res = await fetch("/api/billing", {
-        method: data?.hasStripeCustomer ? "PATCH" : "POST",
+        method: data?.hasStripeSubscription ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId, plan: "PRO", interval: confirmInterval }),
       });
@@ -235,7 +236,7 @@ export default function BillingSettingsPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 {data.plans.map((plan) => {
                   const copy = PLAN_COPY[plan.interval];
-                  const isCurrent = data.hasStripeCustomer && activeInterval === plan.interval && !data.cancelAtPeriodEnd;
+                  const isCurrent = data.hasStripeSubscription && activeInterval === plan.interval && !data.cancelAtPeriodEnd;
                   const isResume = data.cancelAtPeriodEnd && activeInterval === plan.interval;
                   const isSelected = selectedInterval === plan.interval;
 
@@ -273,7 +274,7 @@ export default function BillingSettingsPage() {
                           </span>
                         ) : (
                           <span className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground">
-                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeCustomer ? "เปลี่ยนเป็นแผนนี้" : "เลือกแผนนี้"}
+                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeSubscription ? "เปลี่ยนเป็นแผนนี้" : "เลือกแผนนี้"}
                           </span>
                         )}
                       </div>
@@ -283,7 +284,7 @@ export default function BillingSettingsPage() {
               </div>
             </section>
 
-            {data.hasStripeCustomer && !data.cancelAtPeriodEnd && (
+            {data.hasStripeSubscription && !data.cancelAtPeriodEnd && (
               <div className="mb-4 text-center">
                 <button
                   type="button"
@@ -310,7 +311,7 @@ export default function BillingSettingsPage() {
             <h2 className="text-xl font-bold text-foreground">ยืนยันการเปลี่ยนแผน</h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               คุณกำลังเลือกแผน {pendingPlan.name} ราคา {pendingPlan.price} {pendingPlan.cadence}
-              {data?.hasStripeCustomer
+              {data?.hasStripeSubscription
                 ? " ระบบจะยังไม่เรียกเก็บเงินทันที และจะใช้แผนใหม่นี้เมื่อรอบปัจจุบันหมดอายุ"
                 : " ระบบจะพาไปหน้าชำระเงินเพื่อเริ่มใช้งานแผนนี้"}
             </p>

@@ -8,6 +8,7 @@ const SAFE_ERROR_MESSAGES = new Set([
   "Not found",
   "Billing is not configured",
   "No active Stripe customer found",
+  "No active Stripe subscription found",
   "Stripe is not configured",
   "Subscription not found",
   "Subscription expired",

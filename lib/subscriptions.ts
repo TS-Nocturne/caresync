@@ -23,7 +23,7 @@ export async function createTrialSubscription(orgId: string) {
 export async function requireOrgSubscription(orgId: string) {
   const subscription = await prisma.subscription.findUnique({ where: { organizationId: orgId } });
   if (!subscription) {
-    throw new Error("Subscription not found");
+    return createTrialSubscription(orgId);
   }
   return subscription;
 }

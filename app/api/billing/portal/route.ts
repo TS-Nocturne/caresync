@@ -23,8 +23,8 @@ export async function POST(request: Request) {
       where: { organizationId: orgId },
     });
 
-    if (!subscription || !subscription.stripeCustomerId) {
-      throw new Error("No active Stripe customer found");
+    if (!subscription?.stripeCustomerId || !subscription.stripeSubId) {
+      throw new Error("No active Stripe subscription found");
     }
 
     const stripe = getStripe();

@@ -120,6 +120,7 @@ export async function GET(request: Request) {
         })),
         stripeConfigured: isStripeConfigured(),
         hasStripeCustomer: !!subscription.stripeCustomerId,
+        hasStripeSubscription: !!subscription.stripeSubId,
         isTrial: isTrialSubscription(subscription),
         isOwner: true,
       },
@@ -244,7 +245,14 @@ export async function PATCH(request: Request) {
     const stripe = getStripe();
     const priceId = stripePriceIdForInterval(interval);
 
-    if (!stripe || !priceId || !subscription.stripeSubId) {
+    if (stripe && priceId && !subscription.stripeSubId) {
+      return NextResponse.json(
+        { error: "No active subscription. Start checkout first." },
+        { status: 409 }
+      );
+    }
+
+    if (!stripe || !priceId) {
       const updated = await prisma.subscription.update({
         where: { organizationId: orgId },
         data: {
@@ -258,13 +266,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ data: { subscription: updated, mode: "dev-change" } });
     }
 
-    const stripeState = await getStripeCancelState(subscription.stripeSubId);
+    const stripeSubId = subscription.stripeSubId;
+    if (!stripeSubId) {
+      return NextResponse.json(
+        { error: "No active subscription. Start checkout first." },
+        { status: 409 }
+      );
+    }
+
+    const stripeState = await getStripeCancelState(stripeSubId);
     const itemId = stripeState?.itemId;
     if (!itemId) {
       throw new Error("Stripe subscription item not found");
     }
 
-    const updatedStripeSubscription = await stripe.subscriptions.update(subscription.stripeSubId, {
+    const updatedStripeSubscription = await stripe.subscriptions.update(stripeSubId, {
       cancel_at_period_end: false,
       proration_behavior: "none",
       items: [{ id: itemId, price: priceId }],
