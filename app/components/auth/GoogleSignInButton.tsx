@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
+import { sanitizeCallbackUrl } from "@/lib/redirects";
 
 type SocialProvider = "google" | "line";
 type OAuth2SignInClient = {
@@ -63,17 +64,18 @@ export default function GoogleSignInButton({
   label?: string;
 }) {
   const config = providerConfig[provider];
+  const safeCallbackURL = sanitizeCallbackUrl(callbackURL, "/dashboard");
 
   const handleSignIn = async () => {
     if (provider === "line") {
       await (authClient as OAuth2SignInClient).signIn.oauth2({
         providerId: "line",
-        callbackURL,
+        callbackURL: safeCallbackURL,
       });
       return;
     }
 
-    await authClient.signIn.social({ provider, callbackURL });
+    await authClient.signIn.social({ provider, callbackURL: safeCallbackURL });
   };
 
   return (

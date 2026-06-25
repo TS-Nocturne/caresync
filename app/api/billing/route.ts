@@ -2,10 +2,23 @@ import { NextResponse } from "next/server";
 import type { PlanTier } from "@prisma/client";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { PLAN_LIMITS } from "@/lib/subscription-limits";
-import { requireOrgSubscription } from "@/lib/subscriptions";
+import {
+  getEffectivePlan,
+  getEffectiveSubscriptionStatus,
+  isTrialSubscription,
+  requireOrgSubscription,
+} from "@/lib/subscriptions";
 import { getStripe, isStripeConfigured, STRIPE_PRICE_IDS } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import { apiError, readJsonBody } from "@/lib/api-security";
+
+const BILLING_INTERVAL_DAYS = {
+  month: 30,
+  semi_annual: 180,
+  year: 365,
+} as const;
+
+type BillingInterval = keyof typeof BILLING_INTERVAL_DAYS;
 
 export async function GET(request: Request) {
   try {
@@ -20,6 +33,7 @@ export async function GET(request: Request) {
     }
 
     const subscription = await requireOrgSubscription(orgId);
+    const effectivePlan = getEffectivePlan(subscription);
     const memberCount = await prisma.member.count({ where: { organizationId: orgId } });
     const pendingInvites = await prisma.workspaceInvite.count({
       where: { organizationId: orgId, status: "PENDING", expiresAt: { gt: new Date() } },
@@ -27,17 +41,19 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       data: {
-        plan: subscription.plan,
-        status: subscription.status,
+        plan: effectivePlan,
+        status: getEffectiveSubscriptionStatus(subscription),
         currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
         memberCount,
         pendingInvites,
-        limits: PLAN_LIMITS[subscription.plan],
-        plans: (["FREE", "BASIC", "PRO"] as PlanTier[]).map((plan) => ({
+        limits: PLAN_LIMITS[effectivePlan],
+        plans: (["FREE", "PRO"] as PlanTier[]).map((plan) => ({
           plan,
           ...PLAN_LIMITS[plan],
         })),
         stripeConfigured: isStripeConfigured(),
+        hasStripeCustomer: !!subscription.stripeCustomerId,
+        isTrial: isTrialSubscription(subscription),
         isOwner: true,
       },
     });
@@ -52,11 +68,11 @@ export async function POST(request: Request) {
     const body = await readJsonBody<{
       orgId?: string;
       plan?: "PRO";
-      interval?: "month" | "semi_annual" | "year";
+      interval?: BillingInterval;
     }>(request);
     const { orgId, plan, interval = "month" } = body;
 
-    if (!orgId || plan !== "PRO" || !["month", "semi_annual", "year"].includes(interval)) {
+    if (!orgId || plan !== "PRO" || !(interval in BILLING_INTERVAL_DAYS)) {
       return NextResponse.json({ error: "Invalid orgId, plan, or interval" }, { status: 400 });
     }
 
@@ -81,14 +97,15 @@ export async function POST(request: Request) {
         throw new Error("Billing is not configured");
       }
 
+      const currentPeriodEnd = new Date(Date.now() + BILLING_INTERVAL_DAYS[interval] * 86400000);
       const updated = await prisma.subscription.upsert({
         where: { organizationId: orgId },
-        update: { plan, status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 30 * 86400000) },
+        update: { plan, status: "ACTIVE", currentPeriodEnd },
         create: {
           organizationId: orgId,
           plan,
           status: "ACTIVE",
-          currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
+          currentPeriodEnd,
         },
       });
       return NextResponse.json({
@@ -122,6 +139,9 @@ export async function POST(request: Request) {
       success_url: `${baseUrl}/${orgId}/settings/billing?success=1`,
       cancel_url: `${baseUrl}/${orgId}/settings/billing?canceled=1`,
       metadata: { orgId, plan, interval },
+      subscription_data: {
+        metadata: { orgId, plan, interval },
+      },
     });
 
     return NextResponse.json({ data: { url: checkout.url, mode: "stripe" } });

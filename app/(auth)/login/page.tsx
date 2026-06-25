@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/app/components/ui/ThemeToggle";
 import GoogleSignInButton from "@/app/components/auth/GoogleSignInButton";
+import { sanitizeCallbackUrl } from "@/lib/redirects";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -14,7 +15,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"), "/dashboard");
   const { data: session, isPending } = useSession();
 
   useEffect(() => {

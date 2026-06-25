@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { callBrain, type BrainAssessmentResult } from "@/lib/brain-api";
 import { apiError, readJsonBody, sanitizeText, sanitizeTextList } from "@/lib/api-security";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 type AssessBody = {
   orgId?: string;
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
     }
 
     await requireOrgMembership(orgId, session.user.id);
+    await requireWritableSubscription(orgId);
 
     const { requireCaregiverWriteAccess } = await import("@/lib/caregiver-access");
     await requireCaregiverWriteAccess(orgId, session.user.id, patientId);

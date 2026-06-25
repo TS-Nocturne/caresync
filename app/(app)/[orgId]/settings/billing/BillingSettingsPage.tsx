@@ -12,6 +12,8 @@ interface BillingData {
   limits: { label: string; priceLabel: string; maxMembers: number };
   plans: Array<{ plan: string; label: string; priceLabel: string; maxMembers: number }>;
   stripeConfigured: boolean;
+  hasStripeCustomer: boolean;
+  isTrial: boolean;
 }
 
 export default function BillingSettingsPage() {
@@ -113,7 +115,7 @@ export default function BillingSettingsPage() {
 
         {data && (
           <>
-            {data.plan === "PRO" ? (
+            {data.hasStripeCustomer ? (
               // ACTIVE SUBSCRIPTION UI
               <div className="bg-card border border-border rounded-2xl p-6 mb-6 shadow-sm">
                 <p className="text-sm text-muted-foreground">แพ็กเกจปัจจุบัน</p>
@@ -132,13 +134,26 @@ export default function BillingSettingsPage() {
                     disabled={portalLoading}
                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-100 text-slate-900 text-sm font-semibold hover:bg-slate-200 transition-colors disabled:opacity-50"
                   >
-                    {portalLoading ? "กำลังโหลด..." : "อัปเดตข้อมูลบัตรเครดิต"}
+                    {portalLoading ? "กำลังโหลด..." : "จัดการบัตรเครดิต & การสมัครสมาชิก"}
                   </button>
                 </div>
               </div>
             ) : (
               // UPGRADE UI
               <>
+                {/* Trial Banner */}
+                {!data.hasStripeCustomer && data.plan === "PRO" && data.status === "ACTIVE" && data.currentPeriodEnd && new Date(data.currentPeriodEnd) > new Date() && (
+                  <div className="mb-8 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start gap-3">
+                    <div className="text-emerald-500 mt-0.5">⏱️</div>
+                    <div>
+                      <p className="text-emerald-800 font-bold text-sm">คุณกำลังอยู่ในช่วงทดลองใช้ฟรี</p>
+                      <p className="text-emerald-600 text-xs mt-1">
+                        ทดลองใช้ฟรีถึงวันที่ {new Date(data.currentPeriodEnd).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })} — สมัครสมาชิกวันนี้เพื่อให้การใช้งานลื่นไหลไม่มีสะดุด
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Toggle Switch */}
                 <div className="flex justify-center mb-8">
                   <div className="bg-slate-200 p-1 rounded-full flex relative overflow-hidden max-w-full w-[460px]">
@@ -177,8 +192,8 @@ export default function BillingSettingsPage() {
                       <div className="inline-block bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3">
                         {interval === "year" ? "Best Value" : "CareSync Pro"}
                       </div>
-                      <h3 className="text-2xl font-bold text-white">อัปเกรดเพื่อปลดล็อกฟีเจอร์</h3>
-                      <p className="text-slate-400 text-sm mt-1">ทดลองใช้ฟรี 14 วัน เริ่มเก็บเงินรอบถัดไป</p>
+                      <h3 className="text-2xl font-bold text-white">อัปเกรดเป็นสมาชิกระยะยาว</h3>
+                      <p className="text-slate-400 text-sm mt-1">ใช้งานไม่จำกัดสมาชิก พร้อม AI ดูแล</p>
                     </div>
                     
                     <div className="text-left sm:text-right">
@@ -202,7 +217,7 @@ export default function BillingSettingsPage() {
                         className="mt-1 w-5 h-5 rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
                       />
                       <span className="text-sm text-slate-300 leading-relaxed">
-                        ฉันยอมรับเงื่อนไขการสมัครสมาชิกแบบรายเดือน และเข้าใจว่าระบบจะต่ออายุอัตโนมัติ (สามารถยกเลิกได้ตลอดเวลาในเมนูตั้งค่า)
+                        ฉันยอมรับเงื่อนไขการสมัครสมาชิก และเข้าใจว่าระบบจะต่ออายุอัตโนมัติ (สามารถยกเลิกได้ตลอดเวลา)
                       </span>
                     </label>
                   </div>
@@ -213,13 +228,13 @@ export default function BillingSettingsPage() {
                     onClick={upgrade}
                     className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg hover:bg-primary-dark transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
                   >
-                    {loading === "upgrade" ? "กำลังดำเนินการ..." : "เริ่มทดลองใช้ฟรี 14 วัน"}
+                    {loading === "upgrade" ? "กำลังดำเนินการ..." : "สมัครสมาชิก CareSync Pro"}
                   </button>
                 </div>
               </>
             )}
 
-            {data.plan === "PRO" && (
+            {data.hasStripeCustomer && data.plan === "PRO" && (
               <div className="text-center mt-12 mb-4">
                 <button 
                   onClick={() => setShowCancelModal(true)} 

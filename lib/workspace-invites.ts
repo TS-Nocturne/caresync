@@ -1,7 +1,7 @@
 import type { PortalRole } from "@prisma/client";
 import { prisma } from "./prisma";
 import { canAddMember, canCreateInvite } from "./subscription-limits";
-import { requireOrgSubscription } from "./subscriptions";
+import { requireWritableSubscription } from "./subscriptions";
 
 const INVITE_TTL_DAYS = 7;
 
@@ -10,7 +10,7 @@ export async function getOrgSubscription(orgId: string) {
 }
 
 export async function assertCanInvite(orgId: string) {
-  const subscription = await requireOrgSubscription(orgId);
+  const subscription = await requireWritableSubscription(orgId);
   const [memberCount, pendingInvites] = await Promise.all([
     prisma.member.count({ where: { organizationId: orgId } }),
     prisma.workspaceInvite.count({
@@ -91,7 +91,7 @@ export async function acceptWorkspaceInvite(token: string, userId: string) {
     throw new Error("ลิงก์เชิญหมดอายุแล้ว — ขอลิงก์ใหม่จากเจ้าของห้อง");
   }
 
-  const subscription = await requireOrgSubscription(invite.organizationId);
+  const subscription = await requireWritableSubscription(invite.organizationId);
   const memberCount = await prisma.member.count({
     where: { organizationId: invite.organizationId },
   });

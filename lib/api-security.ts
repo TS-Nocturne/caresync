@@ -10,36 +10,31 @@ const SAFE_ERROR_MESSAGES = new Set([
   "No active Stripe customer found",
   "Stripe is not configured",
   "Subscription not found",
+  "Subscription expired",
 ]);
+
 const MAX_JSON_BYTES = 256 * 1024;
+
+function getErrorStatus(message: string) {
+  if (message === "Unauthorized") return 401;
+  if (message === "Forbidden") return 403;
+  if (message === "Not found" || message.toLowerCase().includes("not found")) return 404;
+  if (message === "Invalid JSON format" || message.startsWith("Invalid ")) return 400;
+  if (message === "Request body too large") return 413;
+  if (message === "Subscription expired") return 402;
+  if (message === "Billing is not configured" || message === "Stripe is not configured") return 503;
+  return 500;
+}
 
 export function apiError(error: unknown, fallback = "Request failed") {
   const message = error instanceof Error ? error.message : fallback;
-  const status =
-    message === "Unauthorized"
-      ? 401
-      : message === "Forbidden"
-        ? 403
-        : message === "Not found" || message.toLowerCase().includes("not found")
-          ? 404
-          : message === "Invalid JSON format" || message.startsWith("Invalid ")
-          ? 400
-          : message === "Request body too large"
-            ? 413
-            : message === "Billing is not configured" || message === "Stripe is not configured"
-              ? 503
-              : message.includes("แผน") || message.includes("เธเธ")
-                ? 402
-                : 500;
+  const status = getErrorStatus(message);
+  const canExposeMessage =
+    SAFE_ERROR_MESSAGES.has(message) || message.startsWith("Invalid ") || status === 404;
+
   return NextResponse.json(
     {
-      error:
-        SAFE_ERROR_MESSAGES.has(message) ||
-        message.startsWith("Invalid ") ||
-        status === 402 ||
-        status === 404
-          ? message
-          : fallback,
+      error: canExposeMessage ? message : fallback,
     },
     { status }
   );

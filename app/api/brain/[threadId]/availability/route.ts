@@ -4,6 +4,7 @@ import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { callBrain, type BrainAssessmentResult } from "@/lib/brain-api";
 import { requireBrainThreadAccess } from "@/lib/brain-thread-access";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 type AvailabilityBody = {
   orgId?: string;
@@ -43,6 +44,7 @@ export async function POST(request: Request, context: { params: Promise<{ thread
     }
 
     await requireOrgMembership(body.orgId, session.user.id);
+    await requireWritableSubscription(body.orgId);
     const thread = await requireBrainThreadAccess(body.orgId, session.user.id, threadId);
     const memberName = sanitizeText(body.memberName, 120) || session.user.name;
     const note = sanitizeText(body.note, 500) || "available_for_doctor_visit";

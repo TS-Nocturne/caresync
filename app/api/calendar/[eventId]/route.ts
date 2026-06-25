@@ -5,6 +5,7 @@ import { getPortalAccess, requirePatientAccess } from "@/lib/workspace-access";
 import { canEditOrDeleteEvent, canClaimEvent } from "@/lib/calendar-permissions";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 import type { EventType } from "@prisma/client";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 const EVENT_TYPES: EventType[] = [
   "VISIT",
@@ -42,6 +43,7 @@ export async function PUT(request: Request, props: { params: Promise<{ eventId: 
 
     const access = await getPortalAccess(orgId, session.user.id);
     if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await requireWritableSubscription(orgId);
 
     const event = await prisma.calendarEvent.findUnique({ where: { id: eventId, organizationId: orgId } });
     if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -135,6 +137,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ eventI
 
     const access = await getPortalAccess(orgId, session.user.id);
     if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    await requireWritableSubscription(orgId);
 
     const event = await prisma.calendarEvent.findUnique({ where: { id: eventId, organizationId: orgId } });
     if (!event) return NextResponse.json({ error: "Not found" }, { status: 404 });

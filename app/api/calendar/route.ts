@@ -5,6 +5,7 @@ import { getAccessiblePatientIds, getPortalAccess, requirePatientAccess } from "
 import { canCreateEvent } from "@/lib/calendar-permissions";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 import type { EventType, Prisma } from "@prisma/client";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 const EVENT_TYPES: EventType[] = [
   "VISIT",
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
     if (!access || !canCreateEvent(access, type)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    await requireWritableSubscription(orgId);
     if (patientId) {
       await requirePatientAccess(orgId, session.user.id, patientId);
     }

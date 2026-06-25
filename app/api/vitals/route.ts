@@ -4,6 +4,7 @@ import { requireSession, requireOrgMembership } from "@/lib/auth-server";
 import { requireCaregiverWriteAccess } from "@/lib/caregiver-access";
 import { assessVitalRisk } from "@/lib/vital-alerts";
 import { apiError, readJsonBody } from "@/lib/api-security";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 type VitalsRequestBody = {
   orgId?: unknown;
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
     }
 
     await requireOrgMembership(orgId, session.user.id);
+    await requireWritableSubscription(orgId);
     await requireCaregiverWriteAccess(orgId, session.user.id, patientId);
 
     const patient = await prisma.patient.findFirst({

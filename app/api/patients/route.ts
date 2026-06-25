@@ -12,6 +12,7 @@ import {
 import { getPatientStatus } from "@/lib/vital-alerts";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 import { getPatientWhereForUser } from "@/lib/workspace-access";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 async function requireOwnerOrAdmin(orgId: string, userId: string) {
   const member = await requireOrgMembership(orgId, userId);
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
     }
 
     await requireOwnerOrAdmin(body.orgId, session.user.id);
+    await requireWritableSubscription(body.orgId);
 
     const patient = await prisma.$transaction(async (tx) => {
       const created = await tx.patient.create({

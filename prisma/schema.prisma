@@ -171,7 +171,6 @@ model BrainThread {
 
 enum PlanTier {
   FREE
-  BASIC
   PRO
 }
 

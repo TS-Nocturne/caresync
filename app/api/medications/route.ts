@@ -4,6 +4,7 @@ import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { requirePermission } from "@/lib/caregiver-access";
 import { PERMISSIONS } from "@/lib/permissions";
 import { apiError, readJsonBody } from "@/lib/api-security";
+import { requireWritableSubscription } from "@/lib/subscriptions";
 
 export async function GET(request: Request) {
   try {
@@ -50,6 +51,7 @@ export async function PATCH(request: Request) {
     }
 
     await requireOrgMembership(orgId, session.user.id);
+    await requireWritableSubscription(orgId);
 
     const medication = await prisma.medication.findFirst({
       where: { id: medicationId, organizationId: orgId },

@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
+import { sanitizeCallbackUrl } from "./lib/redirects";
 
 const PROTECTED_PATTERN =
   /^\/(dashboard|onboarding)$|^\/invite\/|^\/[^/]+\/(dashboard|caregiver|family|alert|settings|consent|patients)(\/|$)/;
@@ -11,7 +12,7 @@ export default function middleware(request: NextRequest) {
 
   if (isProtected && !sessionCookie) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", sanitizeCallbackUrl(pathname));
     return NextResponse.redirect(loginUrl);
   }
 

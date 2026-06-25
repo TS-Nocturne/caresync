@@ -30,30 +30,6 @@ export default function MarketingPage() {
             Get Started for Free
           </Link>
         </div>
-
-        {/* Dashboard Preview */}
-        <div className="mt-20 relative mx-auto max-w-5xl animate-fade-in" style={{ animationDelay: "500ms" }}>
-          <div className="absolute inset-0 bg-gradient-to-b from-teal-500/10 to-transparent blur-3xl -z-10 rounded-[3rem]" />
-          <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-2 shadow-2xl">
-            <div className="rounded-xl overflow-hidden border border-border bg-muted aspect-video flex items-center justify-center relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-teal-50 to-emerald-50 opacity-50" />
-              {/* Abstract Dashboard UI */}
-              <div className="w-3/4 h-3/4 bg-card rounded-lg shadow-sm border border-border flex flex-col overflow-hidden relative z-10">
-                <div className="h-12 border-b border-slate-100 flex items-center px-4 gap-4">
-                  <div className="w-24 h-4 bg-slate-100 rounded-full" />
-                  <div className="w-16 h-4 bg-slate-100 rounded-full" />
-                </div>
-                <div className="flex-1 flex p-4 gap-4">
-                  <div className="w-1/3 h-full bg-muted rounded border border-border" />
-                  <div className="w-2/3 h-full flex flex-col gap-4">
-                    <div className="h-1/3 w-full bg-emerald-50 rounded border border-emerald-100" />
-                    <div className="flex-1 w-full bg-muted rounded border border-border" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </main>
 
       {/* Features Grid */}

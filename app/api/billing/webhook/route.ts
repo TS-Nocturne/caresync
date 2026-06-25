@@ -1,7 +1,72 @@
 import { NextResponse } from "next/server";
-import type { PlanTier } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe";
+import { getStripe, STRIPE_PRICE_IDS } from "@/lib/stripe";
+
+const BILLING_INTERVAL_DAYS = {
+  month: 30,
+  semi_annual: 180,
+  year: 365,
+} as const;
+
+type BillingInterval = keyof typeof BILLING_INTERVAL_DAYS;
+
+function isBillingInterval(value: unknown): value is BillingInterval {
+  return typeof value === "string" && value in BILLING_INTERVAL_DAYS;
+}
+
+function priceIdForInterval(interval: BillingInterval) {
+  if (interval === "month") return STRIPE_PRICE_IDS.PRO_MONTHLY;
+  if (interval === "semi_annual") return STRIPE_PRICE_IDS.PRO_SEMI_ANNUAL;
+  return STRIPE_PRICE_IDS.PRO_ANNUAL;
+}
+
+function fallbackPeriodEnd(interval: BillingInterval) {
+  return new Date(Date.now() + BILLING_INTERVAL_DAYS[interval] * 86400000);
+}
+
+async function getStripeSubscriptionDetails(subscriptionId: string | null) {
+  const stripe = getStripe();
+  if (!stripe || !subscriptionId) return null;
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const raw = subscription as unknown as {
+    current_period_end?: number;
+    items?: { data?: Array<{ price?: { id?: string } }> };
+  };
+
+  return {
+    currentPeriodEnd:
+      typeof raw.current_period_end === "number"
+        ? new Date(raw.current_period_end * 1000)
+        : null,
+    priceId: raw.items?.data?.[0]?.price?.id ?? null,
+  };
+}
+
+async function notifyOwner(orgId: string, plan: string, currentPeriodEnd: Date) {
+  try {
+    const ownerMember = await prisma.member.findFirst({
+      where: { organizationId: orgId, role: "owner" },
+      include: { user: { include: { accounts: true } } },
+    });
+
+    const lineAccount = ownerMember?.user.accounts.find((acc) => acc.providerId === "line");
+    if (!lineAccount?.accountId) return;
+
+    const { sendLinePushMessage } = await import("@/lib/line-push");
+    const org = await prisma.organization.findUnique({ where: { id: orgId } });
+    const formattedDate = currentPeriodEnd.toLocaleDateString("th-TH", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const message = `ชำระเงินสำเร็จ\nแพ็กเกจ: ${plan}\nหมดอายุ: ${formattedDate}\nWorkspace: ${org?.name || orgId}`;
+    await sendLinePushMessage(lineAccount.accountId, message);
+  } catch (error) {
+    console.error("[billing/webhook] owner notification failed", error);
+  }
+}
 
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -27,64 +92,81 @@ export async function POST(request: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const orgId = session.metadata?.orgId;
-    const plan = session.metadata?.plan as PlanTier | undefined;
-    const interval = session.metadata?.interval || "month";
+    const plan = session.metadata?.plan;
+    const interval = session.metadata?.interval;
 
-    if (orgId && plan) {
-      // 1. Calculate how many days to add
-      let daysToAdd = 30;
-      if (interval === "semi_annual") daysToAdd = 180;
-      if (interval === "year") daysToAdd = 365;
+    if (typeof orgId !== "string" || plan !== "PRO" || !isBillingInterval(interval)) {
+      return NextResponse.json({ received: true });
+    }
 
-      // 2. Fetch current subscription to see if it's still active
-      const currentSub = await prisma.subscription.findUnique({ where: { organizationId: orgId } });
-      const now = new Date();
-      let baseDate = now;
+    const expectedPriceId = priceIdForInterval(interval);
+    if (!expectedPriceId) {
+      return NextResponse.json({ error: "Billing is not configured" }, { status: 503 });
+    }
 
-      // If active and not expired, add to the current end date
-      if (currentSub?.currentPeriodEnd && currentSub.currentPeriodEnd > now) {
-        baseDate = currentSub.currentPeriodEnd;
+    const stripeCustomerId = typeof session.customer === "string" ? session.customer : null;
+    const stripeSubId = typeof session.subscription === "string" ? session.subscription : null;
+    const stripeDetails = await getStripeSubscriptionDetails(stripeSubId);
+
+    if (stripeDetails?.priceId && stripeDetails.priceId !== expectedPriceId) {
+      return NextResponse.json({ error: "Invalid subscription price" }, { status: 400 });
+    }
+
+    const currentPeriodEnd = stripeDetails?.currentPeriodEnd ?? fallbackPeriodEnd(interval);
+
+    const subscription = await prisma.subscription.upsert({
+      where: { organizationId: orgId },
+      update: {
+        plan,
+        status: "ACTIVE",
+        stripeCustomerId: stripeCustomerId ?? undefined,
+        stripeSubId: stripeSubId ?? undefined,
+        stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
+        currentPeriodEnd,
+      },
+      create: {
+        organizationId: orgId,
+        plan,
+        status: "ACTIVE",
+        stripeCustomerId: stripeCustomerId ?? undefined,
+        stripeSubId: stripeSubId ?? undefined,
+        stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
+        currentPeriodEnd,
+      },
+    });
+
+    await notifyOwner(orgId, subscription.plan, currentPeriodEnd);
+  }
+
+  if (event.type === "customer.subscription.updated" || event.type === "invoice.paid") {
+    const obj = event.data.object as unknown as {
+      subscription?: string;
+      id?: string;
+      status?: string;
+    };
+    const stripeSubId = event.type === "invoice.paid" ? obj.subscription : obj.id;
+    if (typeof stripeSubId === "string") {
+      const stripeDetails = await getStripeSubscriptionDetails(stripeSubId);
+      if (stripeDetails?.currentPeriodEnd) {
+        await prisma.subscription.updateMany({
+          where: { stripeSubId },
+          data: {
+            status: "ACTIVE",
+            stripePriceId: stripeDetails.priceId ?? undefined,
+            currentPeriodEnd: stripeDetails.currentPeriodEnd,
+          },
+        });
       }
+    }
+  }
 
-      const newPeriodEnd = new Date(baseDate.getTime() + daysToAdd * 86400000);
-
-      // 3. Update or create the subscription
-      await prisma.subscription.upsert({
-        where: { organizationId: orgId },
-        update: {
-          plan,
-          status: "ACTIVE",
-          currentPeriodEnd: newPeriodEnd,
-        },
-        create: {
-          organizationId: orgId,
-          plan,
-          status: "ACTIVE",
-          stripeCustomerId: typeof session.customer === "string" ? session.customer : undefined,
-          currentPeriodEnd: newPeriodEnd,
-        },
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as unknown as { id?: string };
+    if (typeof subscription.id === "string") {
+      await prisma.subscription.updateMany({
+        where: { stripeSubId: subscription.id },
+        data: { status: "CANCELED" },
       });
-
-      // 4. Send LINE Notification to the Owner
-      // Find the owner of the organization
-      const ownerMember = await prisma.member.findFirst({
-        where: { organizationId: orgId, role: "owner" },
-        include: { user: { include: { accounts: true } } },
-      });
-
-      if (ownerMember) {
-        const lineAccount = ownerMember.user.accounts.find(acc => acc.providerId === "line");
-        if (lineAccount?.accountId) {
-          const { sendLinePushMessage } = await import("@/lib/line-push");
-          const org = await prisma.organization.findUnique({ where: { id: orgId } });
-          const formattedDate = newPeriodEnd.toLocaleDateString("th-TH", {
-            year: "numeric", month: "long", day: "numeric"
-          });
-          
-          const message = `✅ ชำระเงินสำเร็จ!\nระบบได้ต่ออายุการใช้งานห้องดูแล '${org?.name || orgId}'\n\nแพ็กเกจ: ${plan}\nหมดอายุ: ${formattedDate}\n\nขอบคุณที่ไว้วางใจให้ CareFlow ดูแลครับ`;
-          await sendLinePushMessage(lineAccount.accountId, message);
-        }
-      }
     }
   }
 

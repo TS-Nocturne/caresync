@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ThemeToggle from "@/app/components/ui/ThemeToggle";
 import GoogleSignInButton from "@/app/components/auth/GoogleSignInButton";
+import { sanitizeCallbackUrl } from "@/lib/redirects";
 
 function SignUpForm() {
   const [name, setName] = useState("");
@@ -15,7 +16,7 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/onboarding";
+  const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"), "/onboarding");
   const isInviteFlow = callbackUrl.startsWith("/invite/");
 
   const handleSignup = async (e: React.FormEvent) => {
