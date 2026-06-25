@@ -38,7 +38,6 @@ export default function TeamSettingsPage() {
   const [memberToRevoke, setMemberToRevoke] = useState<MemberRow | null>(null);
   const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
-  const [deleteRoomName, setDeleteRoomName] = useState("");
   const [deletingRoom, setDeletingRoom] = useState(false);
 
   const load = useCallback(async () => {
@@ -132,7 +131,7 @@ export default function TeamSettingsPage() {
       const res = await fetch("/api/workspace/room", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, confirmName: deleteRoomName }),
+        body: JSON.stringify({ orgId }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "ลบห้องไม่สำเร็จ");
@@ -202,7 +201,6 @@ export default function TeamSettingsPage() {
             <button
               type="button"
               onClick={() => {
-                setDeleteRoomName("");
                 setShowDeleteRoomModal(true);
               }}
               className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
@@ -327,17 +325,6 @@ export default function TeamSettingsPage() {
               </div>
             </div>
 
-            <label className="mb-2 block text-sm font-semibold text-foreground">
-              พิมพ์ชื่อห้องเพื่อยืนยัน
-            </label>
-            <input
-              value={deleteRoomName}
-              onChange={(e) => setDeleteRoomName(e.target.value)}
-              className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
-              placeholder={organizationName || "ชื่อห้อง"}
-              autoFocus
-            />
-
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 type="button"
@@ -350,7 +337,7 @@ export default function TeamSettingsPage() {
               <button
                 type="button"
                 onClick={deleteRoom}
-                disabled={deletingRoom || deleteRoomName.trim() !== organizationName}
+                disabled={deletingRoom}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deletingRoom && (

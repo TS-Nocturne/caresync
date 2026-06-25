@@ -7,12 +7,11 @@ import { getStripe } from "@/lib/stripe";
 export async function DELETE(request: Request) {
   try {
     const session = await requireSession();
-    const body = await readJsonBody<{ orgId?: string; confirmName?: string }>(request);
+    const body = await readJsonBody<{ orgId?: string }>(request);
     const orgId = body.orgId?.trim();
-    const confirmName = body.confirmName?.trim();
 
-    if (!orgId || !confirmName) {
-      return NextResponse.json({ error: "Invalid orgId or confirmation name" }, { status: 400 });
+    if (!orgId) {
+      return NextResponse.json({ error: "Invalid orgId" }, { status: 400 });
     }
 
     const member = await requireOrgMembership(orgId, session.user.id);
@@ -31,10 +30,6 @@ export async function DELETE(request: Request) {
 
     if (organization.deletedAt) {
       return NextResponse.json({ data: { deleted: true } });
-    }
-
-    if (organization.name !== confirmName) {
-      return NextResponse.json({ error: "Room name confirmation does not match" }, { status: 400 });
     }
 
     const subscription = await prisma.subscription.findUnique({
