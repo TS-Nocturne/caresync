@@ -2,8 +2,8 @@ import type { PlanTier } from "@prisma/client";
 
 /**
  * CareSync has a single paid plan ("PRO") with 3 billing intervals.
- * FREE is only used as a fallback state (no subscription found).
- * New workspaces always start with a 14-day PRO trial.
+ * FREE is used until the owner starts Stripe Checkout and attaches a card.
+ * The 14-day trial is created by Stripe, not locally in the database.
  */
 export const PLAN_LIMITS: Record<
   PlanTier,

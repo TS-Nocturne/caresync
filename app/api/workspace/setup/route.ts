@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
-import { createTrialSubscription } from "@/lib/subscriptions";
+import { ensureSubscriptionRecord } from "@/lib/subscriptions";
 import { apiError, readJsonBody } from "@/lib/api-security";
 
 export async function POST(request: Request) {
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       throw new Error("Forbidden");
     }
 
-    const subscription = await createTrialSubscription(body.orgId);
+    const subscription = await ensureSubscriptionRecord(body.orgId);
 
     return NextResponse.json({
       data: { plan: subscription.plan, organizationId: body.orgId, ownerId: session.user.id },

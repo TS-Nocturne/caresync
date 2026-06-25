@@ -41,31 +41,6 @@ async function getStripeSubscriptionDetails(subscriptionId: string | null) {
   };
 }
 
-async function notifyOwner(orgId: string, plan: string, currentPeriodEnd: Date) {
-  try {
-    const ownerMember = await prisma.member.findFirst({
-      where: { organizationId: orgId, role: "owner" },
-      include: { user: { include: { accounts: true } } },
-    });
-
-    const lineAccount = ownerMember?.user.accounts.find((acc) => acc.providerId === "line");
-    if (!lineAccount?.accountId) return;
-
-    const { sendLinePushMessage } = await import("@/lib/line-push");
-    const org = await prisma.organization.findUnique({ where: { id: orgId } });
-    const formattedDate = currentPeriodEnd.toLocaleDateString("th-TH", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    const message = `ชำระเงินสำเร็จ\nแพ็กเกจ: ${plan}\nหมดอายุ: ${formattedDate}\nWorkspace: ${org?.name || orgId}`;
-    await sendLinePushMessage(lineAccount.accountId, message);
-  } catch (error) {
-    console.error("[billing/webhook] owner notification failed", error);
-  }
-}
-
 export async function POST(request: Request) {
   const stripe = getStripe();
   if (!stripe) {
@@ -112,7 +87,7 @@ export async function POST(request: Request) {
 
     const currentPeriodEnd = stripeDetails?.currentPeriodEnd ?? fallbackPeriodEnd(interval);
 
-    const subscription = await prisma.subscription.upsert({
+    await prisma.subscription.upsert({
       where: { organizationId: orgId },
       update: {
         plan,
@@ -134,8 +109,6 @@ export async function POST(request: Request) {
         currentPeriodEnd,
       },
     });
-
-    await notifyOwner(orgId, subscription.plan, currentPeriodEnd);
   }
 
   if (event.type === "customer.subscription.updated" || event.type === "invoice.paid") {

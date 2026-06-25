@@ -25,6 +25,7 @@ const BILLING_INTERVAL_DAYS = {
 } as const satisfies Record<BillingInterval, number>;
 
 const BILLING_INTERVALS = ["month", "semi_annual", "year"] as const;
+const CARD_TRIAL_DAYS = 14;
 
 function isBillingInterval(value: unknown): value is BillingInterval {
   return typeof value === "string" && value in BILLING_INTERVAL_DAYS;
@@ -32,10 +33,6 @@ function isBillingInterval(value: unknown): value is BillingInterval {
 
 function devPriceIdForInterval(interval: BillingInterval) {
   return `dev:PRO:${interval}`;
-}
-
-function fallbackPeriodEnd(interval: BillingInterval) {
-  return new Date(Date.now() + BILLING_INTERVAL_DAYS[interval] * 86400000);
 }
 
 async function getStripeCancelState(stripeSubId: string | null) {
@@ -122,6 +119,7 @@ export async function GET(request: Request) {
         hasStripeCustomer: !!subscription.stripeCustomerId,
         hasStripeSubscription: !!subscription.stripeSubId,
         isTrial: isTrialSubscription(subscription),
+        trialDays: CARD_TRIAL_DAYS,
         isOwner: true,
       },
     });
@@ -152,37 +150,8 @@ export async function POST(request: Request) {
     const stripe = getStripe();
     const priceId = stripePriceIdForInterval(interval);
 
-    const allowDevUpgrade =
-      process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_BILLING === "true";
-
     if (!stripe || !priceId) {
-      if (!allowDevUpgrade) {
-        throw new Error("Billing is not configured");
-      }
-
-      const currentPeriodEnd = fallbackPeriodEnd(interval);
-      const updated = await prisma.subscription.upsert({
-        where: { organizationId: orgId },
-        update: {
-          plan,
-          status: "ACTIVE",
-          cancelAtPeriodEnd: false,
-          stripePriceId: devPriceIdForInterval(interval),
-          currentPeriodEnd,
-        },
-        create: {
-          organizationId: orgId,
-          plan,
-          status: "ACTIVE",
-          cancelAtPeriodEnd: false,
-          stripePriceId: devPriceIdForInterval(interval),
-          currentPeriodEnd,
-        },
-      });
-      return NextResponse.json({
-        data: { plan: updated.plan, mode: "dev-upgrade" },
-        message: "อัปเกรดแผนแล้ว (โหมด dev — ไม่มี Stripe)",
-      });
+      throw new Error("Billing is not configured");
     }
 
     const subscription = await requireOrgSubscription(orgId);
@@ -205,12 +174,20 @@ export async function POST(request: Request) {
     const checkout = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
+      payment_method_collection: "always",
       customer: customerId,
+      client_reference_id: orgId,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/${orgId}/settings/billing?success=1`,
       cancel_url: `${baseUrl}/${orgId}/settings/billing?canceled=1`,
       metadata: { orgId, plan, interval },
       subscription_data: {
+        trial_period_days: CARD_TRIAL_DAYS,
+        trial_settings: {
+          end_behavior: {
+            missing_payment_method: "cancel",
+          },
+        },
         metadata: { orgId, plan, interval },
       },
     });
@@ -245,25 +222,15 @@ export async function PATCH(request: Request) {
     const stripe = getStripe();
     const priceId = stripePriceIdForInterval(interval);
 
+    if (!stripe || !priceId) {
+      throw new Error("Billing is not configured");
+    }
+
     if (stripe && priceId && !subscription.stripeSubId) {
       return NextResponse.json(
         { error: "No active subscription. Start checkout first." },
         { status: 409 }
       );
-    }
-
-    if (!stripe || !priceId) {
-      const updated = await prisma.subscription.update({
-        where: { organizationId: orgId },
-        data: {
-          plan: "PRO",
-          status: "ACTIVE",
-          cancelAtPeriodEnd: false,
-          stripePriceId: devPriceIdForInterval(interval),
-          currentPeriodEnd: subscription.currentPeriodEnd ?? fallbackPeriodEnd(interval),
-        },
-      });
-      return NextResponse.json({ data: { subscription: updated, mode: "dev-change" } });
     }
 
     const stripeSubId = subscription.stripeSubId;

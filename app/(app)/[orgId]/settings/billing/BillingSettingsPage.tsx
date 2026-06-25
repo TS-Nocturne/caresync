@@ -28,6 +28,7 @@ interface BillingData {
   hasStripeCustomer: boolean;
   hasStripeSubscription: boolean;
   isTrial: boolean;
+  trialDays: number;
 }
 
 const PLAN_COPY: Record<
@@ -162,6 +163,9 @@ export default function BillingSettingsPage() {
           <h1 className="text-2xl font-bold">การเรียกเก็บเงิน (Billing & Subscription)</h1>
           <p className="text-sm text-muted-foreground mt-1">
             ดูแผนปัจจุบัน เปลี่ยนรอบชำระเงิน และยกเลิกการต่ออายุรอบถัดไป
+          </p>
+          <p className="mt-2 text-sm font-medium text-emerald-700">
+            ชำระด้วยบัตรเดบิต/เครดิตเท่านั้น ทดลองใช้ฟรี {data?.trialDays ?? 14} วัน และต้องผูกบัตรก่อนเริ่มใช้งาน
           </p>
           {searchParams.get("success") && (
             <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">

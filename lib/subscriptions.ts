@@ -1,21 +1,15 @@
 import { prisma } from "./prisma";
 import type { PlanTier, Subscription } from "@prisma/client";
 
-export function trialEndDate(days = 14) {
-  const trialEnd = new Date();
-  trialEnd.setDate(trialEnd.getDate() + days);
-  return trialEnd;
-}
-
-export async function createTrialSubscription(orgId: string) {
+export async function ensureSubscriptionRecord(orgId: string) {
   return prisma.subscription.upsert({
     where: { organizationId: orgId },
     update: {},
     create: {
       organizationId: orgId,
-      plan: "PRO",
+      plan: "FREE",
       status: "ACTIVE",
-      currentPeriodEnd: trialEndDate(),
+      currentPeriodEnd: null,
     },
   });
 }
@@ -23,7 +17,7 @@ export async function createTrialSubscription(orgId: string) {
 export async function requireOrgSubscription(orgId: string) {
   const subscription = await prisma.subscription.findUnique({ where: { organizationId: orgId } });
   if (!subscription) {
-    return createTrialSubscription(orgId);
+    return ensureSubscriptionRecord(orgId);
   }
   return subscription;
 }
@@ -37,7 +31,9 @@ export function isSubscriptionActive(subscription: Subscription, now = new Date(
 }
 
 export function isTrialSubscription(subscription: Subscription, now = new Date()) {
-  return isSubscriptionActive(subscription, now) && !subscription.stripeCustomerId;
+  void subscription;
+  void now;
+  return false;
 }
 
 export function getEffectivePlan(subscription: Subscription, now = new Date()): PlanTier {
