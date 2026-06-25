@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useActiveOrganization } from "@/lib/auth-client";
-import Navigation from "@/app/components/ui/Navigation";
 import { usePortalAccess } from "@/app/hooks/usePortalAccess";
 
 interface PatientRow {
@@ -87,7 +86,6 @@ export default function OrgDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
       <main className="app-nav-offset pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">

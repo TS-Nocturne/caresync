@@ -2,7 +2,6 @@ import { getSession } from "@/lib/auth-server";
 import { getPortalAccess } from "@/lib/workspace-access";
 import { redirect } from "next/navigation";
 import Calendar from "@/app/components/calendar/Calendar";
-import Navigation from "@/app/components/ui/Navigation";
 
 export default async function CalendarPage(props: { params: Promise<{ orgId: string }> }) {
   const { orgId } = await props.params;
@@ -21,8 +20,6 @@ export default async function CalendarPage(props: { params: Promise<{ orgId: str
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
-      
       <main className="container mx-auto px-4 pb-12 app-nav-offset">
         <Calendar 
           orgId={orgId} 

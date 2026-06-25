@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { getSession } from "@/lib/auth-server";
 import { prisma } from "@/lib/prisma";
 import SoftLockWrapper from "@/app/components/ui/SoftLockWrapper";
+import Navigation from "@/app/components/ui/Navigation";
 import { redirect } from "next/navigation";
 
 type SessionUserWithConsent = {
@@ -63,15 +64,18 @@ export default async function OrgLayout(props: {
   }
 
   return (
-    <SoftLockWrapper
-      isGracePeriod={isGracePeriod}
-      isReadOnly={isReadOnly}
-      graceHoursRemaining={graceHoursRemaining}
-      orgId={orgId}
-      orgName={org.name}
-      isOwner={isOwner}
-    >
-      {props.children}
-    </SoftLockWrapper>
+    <>
+      <Navigation />
+      <SoftLockWrapper
+        isGracePeriod={isGracePeriod}
+        isReadOnly={isReadOnly}
+        graceHoursRemaining={graceHoursRemaining}
+        orgId={orgId}
+        orgName={org.name}
+        isOwner={isOwner}
+      >
+        {props.children}
+      </SoftLockWrapper>
+    </>
   );
 }
