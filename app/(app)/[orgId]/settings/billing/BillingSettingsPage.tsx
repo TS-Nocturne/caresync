@@ -100,7 +100,7 @@ export default function BillingSettingsPage() {
   const pendingPlan = confirmInterval ? PLAN_COPY[confirmInterval] : null;
   const confirmActionLabel = useMemo(() => {
     if (!data || !confirmInterval) return "";
-    if (!data.hasStripeSubscription) return "ยืนยันและไปชำระเงิน";
+    if (!data.hasStripeSubscription) return "เริ่มทดลองใช้ฟรี 14 วัน";
     if (data.cancelAtPeriodEnd && data.currentInterval === confirmInterval) return "ยืนยันใช้งานต่อ";
     return "ยืนยันเปลี่ยนแผน";
   }, [confirmInterval, data]);
@@ -274,7 +274,7 @@ export default function BillingSettingsPage() {
                           </span>
                         ) : (
                           <span className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground">
-                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeSubscription ? "เปลี่ยนเป็นแผนนี้" : "เลือกแผนนี้"}
+                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeSubscription ? "เปลี่ยนเป็นแผนนี้" : "เริ่มทดลองใช้ฟรี 14 วัน"}
                           </span>
                         )}
                       </div>
