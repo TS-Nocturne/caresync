@@ -9,6 +9,12 @@ type SessionUserWithConsent = {
   termsAccepted?: boolean;
 };
 
+interface WorkspaceLookupResponse {
+  redirect?: string;
+  multipleWorkspaces?: boolean;
+  workspaces?: Array<{ isDeleted?: boolean }>;
+}
+
 const FALLBACK_WORKSPACE_SLUG = "care-workspace";
 
 function randomSlugSuffix() {
@@ -38,15 +44,54 @@ function createWorkspaceSlug(name: string) {
 export default function OnboardingPage() {
   const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingWorkspace, setCheckingWorkspace] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
 
   useEffect(() => {
-    if (session && (session.user as SessionUserWithConsent).termsAccepted === false) {
-      router.replace("/consent");
+    if (isPending) return;
+
+    if (!session) {
+      router.replace("/login");
+      return;
     }
-  }, [session, router]);
+
+    if ((session.user as SessionUserWithConsent).termsAccepted === false) {
+      router.replace("/consent");
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch("/api/me/workspace", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as WorkspaceLookupResponse;
+      })
+      .then((data) => {
+        if (cancelled) return;
+
+        if (data?.redirect && data.redirect !== "/onboarding") {
+          router.replace(data.redirect);
+          return;
+        }
+
+        if (data?.multipleWorkspaces && data.workspaces?.some((workspace) => !workspace.isDeleted)) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        setCheckingWorkspace(false);
+      })
+      .catch(() => {
+        if (!cancelled) setCheckingWorkspace(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPending, session, router]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +135,17 @@ export default function OnboardingPage() {
       setLoading(false);
     }
   };
+
+  if (isPending || checkingWorkspace) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <div className="mx-auto h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground">กำลังตรวจสอบห้องของคุณ...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-20 sm:px-6 relative">
