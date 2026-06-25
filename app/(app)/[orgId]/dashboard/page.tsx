@@ -88,9 +88,9 @@ export default function OrgDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="pt-24 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="app-nav-offset pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">
             {activeOrg?.name || "Workspace Dashboard"}
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -137,10 +137,10 @@ export default function OrgDashboard() {
           )}
         </div>
 
-        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-card rounded-2xl border border-border p-4 sm:p-6 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="text-xl font-bold text-foreground">Active Patients</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted-foreground">{patients.length} คน</span>
               {access?.canAccessDashboard && (
                 <Link

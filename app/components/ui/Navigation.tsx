@@ -86,30 +86,32 @@ export default function Navigation() {
   const links = allLinks.filter((l) => access && l.show);
 
   return (
-    <nav className="fixed top-0 left-0 w-full bg-card/80 backdrop-blur-md border-b border-border z-50 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+    <nav className="fixed top-0 left-0 w-full bg-card/90 backdrop-blur-md border-b border-border z-50 transition-colors">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 flex items-center justify-between gap-3 py-2 sm:py-0">
+        <div className="flex min-w-0 items-center gap-4 lg:gap-6">
           <Link
             href={access?.homePath ?? (orgId ? `/${orgId}/dashboard` : "/dashboard")}
-            className="flex items-center gap-2 group"
+            className="flex min-w-0 items-center gap-2 group"
           >
-            <div className="relative h-8 w-8 overflow-hidden flex items-center justify-center">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden flex items-center justify-center">
               <Image src="/logo.png" alt="CareSync Logo" fill className="object-contain" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex min-w-0 flex-col">
               <span className="font-bold text-base leading-tight text-foreground">CareSync</span>
-              <span className="text-[10px] text-muted-foreground">{activeOrg?.name || "Care Workspace"}</span>
+              <span className="truncate text-[10px] text-muted-foreground max-w-32 sm:max-w-44 md:max-w-56">
+                {activeOrg?.name || "Care Workspace"}
+              </span>
             </div>
           </Link>
 
-          <div className="hidden sm:flex items-center gap-1 bg-muted p-1 rounded-xl">
+          <div className="hidden md:flex items-center gap-1 bg-muted p-1 rounded-xl">
             {links.map((link) => {
               const isActive = pathname.startsWith(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                  className={`px-3 lg:px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap ${
                     isActive
                       ? "bg-card text-foreground shadow-sm border border-border"
                       : "text-muted-foreground hover:text-foreground"
@@ -123,7 +125,7 @@ export default function Navigation() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
           {/* Workspace Switcher */}
           {allWorkspaces.length > 1 && (
             <div className="workspace-switcher" ref={switcherRef}>
@@ -179,7 +181,7 @@ export default function Navigation() {
 
           <button
             onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}
-            className="hidden sm:block text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="hidden lg:block text-sm text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
           >
             ออกจากระบบ
           </button>
@@ -187,6 +189,29 @@ export default function Navigation() {
           <ThemeToggle />
         </div>
       </div>
+      {links.length > 0 && (
+        <div className="border-t border-border/70 md:hidden">
+          <div className="flex gap-2 overflow-x-auto px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {links.map((link) => {
+              const isActive = pathname.startsWith(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span aria-hidden>{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

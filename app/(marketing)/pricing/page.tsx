@@ -14,31 +14,31 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-32 pb-24 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 pt-28 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8">
       {/* Navigation - simplified for pricing page */}
       <nav className="fixed top-0 left-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="relative h-8 w-8 overflow-hidden flex items-center justify-center">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex min-w-0 items-center gap-2">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden flex items-center justify-center">
               <Image src="/logo.png" alt="CareSync Logo" fill className="object-contain" />
             </div>
-            <span className="text-xl font-bold text-slate-800">CareSync</span>
+            <span className="text-lg sm:text-xl font-bold text-slate-800">CareSync</span>
           </Link>
           <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-primary transition-colors">Log in</Link>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto text-center">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 animate-fade-in">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 animate-fade-in">
           เหมาจ่าย ยิ่งยาว ยิ่งคุ้ม
         </h1>
-        <p className="text-lg text-slate-600 mb-12 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "100ms" }}>
+        <p className="text-base sm:text-lg text-slate-600 mb-8 sm:mb-12 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "100ms" }}>
           แพ็กเกจเดียวที่ให้คุณปลดล็อกทุกฟีเจอร์ของ CareSync
         </p>
 
         {/* Toggle Switch */}
-        <div className="flex justify-center mb-12 animate-fade-in" style={{ animationDelay: "150ms" }}>
-          <div className="bg-slate-200 p-1 rounded-full flex relative overflow-hidden max-w-full w-[460px]">
+        <div className="flex justify-center mb-10 sm:mb-12 animate-fade-in" style={{ animationDelay: "150ms" }}>
+          <div className="bg-slate-200 p-1 rounded-full flex relative overflow-hidden w-full max-w-[460px]">
             <div 
               className="absolute top-1 bottom-1 w-[33.33%] bg-white rounded-full shadow-sm transition-transform duration-300 ease-in-out"
               style={{
@@ -47,19 +47,19 @@ export default function PricingPage() {
             />
             <button
               onClick={() => setInterval("month")}
-              className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors ${interval === "month" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
+              className={`flex-1 relative z-10 px-1 py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-colors ${interval === "month" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
             >
               รายเดือน
             </button>
             <button
               onClick={() => setInterval("semi_annual")}
-              className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors ${interval === "semi_annual" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
+              className={`flex-1 relative z-10 px-1 py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-colors ${interval === "semi_annual" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
             >
               6 เดือน
             </button>
             <button
               onClick={() => setInterval("year")}
-              className={`flex-1 relative z-10 py-2.5 text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1 ${interval === "year" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
+              className={`flex-1 relative z-10 px-1 py-2.5 text-xs sm:text-sm font-semibold rounded-full transition-colors flex items-center justify-center gap-1 ${interval === "year" ? "text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
             >
               รายปี <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${interval === "year" ? "bg-emerald-100 text-emerald-700" : "bg-slate-300 text-slate-700"}`}>-33%</span>
             </button>
@@ -68,7 +68,7 @@ export default function PricingPage() {
 
         {/* Single PRO Card */}
         <div className="flex justify-center max-w-lg mx-auto animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <div className="w-full bg-slate-900 rounded-3xl p-8 border border-slate-800 shadow-2xl flex flex-col relative transform hover:-translate-y-1 transition-transform">
+          <div className="w-full bg-slate-900 rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-800 shadow-2xl flex flex-col relative transform hover:-translate-y-1 transition-transform">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
               {interval === "year" ? "Best Value" : "CareSync Pro"}
             </div>
@@ -77,7 +77,7 @@ export default function PricingPage() {
             
             <div className="mb-2 min-h-[4rem] flex flex-col justify-center">
               <div>
-                <span className="text-5xl font-extrabold text-white transition-all">{pricing[interval].price}</span>
+                <span className="text-4xl sm:text-5xl font-extrabold text-white transition-all">{pricing[interval].price}</span>
                 <span className="text-slate-400 ml-1">{pricing[interval].suffix}</span>
               </div>
               <div className="h-6 mt-2">

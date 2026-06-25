@@ -9,6 +9,32 @@ type SessionUserWithConsent = {
   termsAccepted?: boolean;
 };
 
+const FALLBACK_WORKSPACE_SLUG = "care-workspace";
+
+function randomSlugSuffix() {
+  if (typeof crypto !== "undefined" && "getRandomValues" in crypto) {
+    const values = new Uint32Array(1);
+    crypto.getRandomValues(values);
+    return values[0].toString(36).slice(0, 6);
+  }
+
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function createWorkspaceSlug(name: string) {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "");
+
+  return `${base || FALLBACK_WORKSPACE_SLUG}-${randomSlugSuffix()}`;
+}
+
 export default function OnboardingPage() {
   const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,21 +56,32 @@ export default function OnboardingPage() {
     try {
       const newOrg = await organization.create({
         name: orgName,
-        slug: orgName
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)+/g, ""),
+        slug: createWorkspaceSlug(orgName),
       });
 
-      const orgId = newOrg.data?.id as string;
+      if (newOrg.error) {
+        throw new Error(newOrg.error.message || "Failed to create workspace");
+      }
 
-      await organization.setActive({ organizationId: orgId });
+      const orgId = newOrg.data?.id;
+      if (!orgId) {
+        throw new Error("Failed to create workspace");
+      }
 
-      await fetch("/api/workspace/setup", {
+      const activeOrg = await organization.setActive({ organizationId: orgId });
+      if (activeOrg.error) {
+        throw new Error(activeOrg.error.message || "Failed to activate workspace");
+      }
+
+      const setupResponse = await fetch("/api/workspace/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orgId }),
       });
+      if (!setupResponse.ok) {
+        const body = await setupResponse.json().catch(() => null);
+        throw new Error(body?.error || "Failed to setup workspace");
+      }
 
       router.push(`/${orgId}/settings/billing`);
     } catch (err: unknown) {
@@ -55,17 +92,17 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-20 sm:px-6 relative">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <div className="max-w-xl w-full bg-card rounded-3xl p-10 shadow-2xl border border-border">
-        <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-8 text-3xl">
+      <div className="max-w-xl w-full bg-card rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 shadow-2xl border border-border">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6 sm:mb-8 text-2xl sm:text-3xl">
           🏠
         </div>
 
         <h1 className="text-3xl font-extrabold text-foreground mb-2">สร้างห้องดูแล (Workspace)</h1>
-        <p className="text-muted-foreground mb-8">
+        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-7">
           คุณคือ <strong className="text-foreground">เจ้าของห้อง (Owner)</strong> — คนเดียวที่ชำระค่าแผนรายเดือน
           พยาบาลและครอบครัวจะถูกเชินฟรีผ่านลิงก์
         </p>
@@ -76,14 +113,14 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        <form onSubmit={handleCreateWorkspace} className="space-y-6">
+        <form onSubmit={handleCreateWorkspace} className="space-y-5 sm:space-y-6">
           <div>
             <label className="block text-sm font-semibold text-foreground mb-2">ชื่อห้องดูแล</label>
             <input
               type="text"
               required
               placeholder="เช่น ห้องดูแลคุณแม่, Happy Senior Home"
-              className="w-full px-5 py-3 bg-muted border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-foreground"
+              className="w-full px-4 sm:px-5 py-3 bg-muted border border-border rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all text-foreground"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
             />
@@ -92,7 +129,7 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={loading || !orgName.trim()}
-            className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            className="w-full py-3.5 sm:py-4 bg-primary text-primary-foreground rounded-xl font-bold text-base sm:text-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             {loading ? "Creating..." : "สร้าง Workspace"}
           </button>

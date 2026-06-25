@@ -14,7 +14,7 @@ export default async function EmergencyLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="pt-16">{children}</main>
+      <main className="pt-28 md:pt-16">{children}</main>
     </div>
   );
 }

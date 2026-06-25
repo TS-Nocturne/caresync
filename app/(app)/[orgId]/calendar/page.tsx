@@ -23,7 +23,7 @@ export default async function CalendarPage(props: { params: Promise<{ orgId: str
     <div className="min-h-screen bg-background">
       <Navigation />
       
-      <main className="container mx-auto p-4 pt-24">
+      <main className="container mx-auto px-4 pb-12 app-nav-offset">
         <Calendar 
           orgId={orgId} 
           currentUserId={session.user.id} 

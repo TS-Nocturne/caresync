@@ -61,13 +61,13 @@ function LoginForm() {
   const signupHref = `/signup${callbackUrl !== "/dashboard" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative">
+    <div className="min-h-screen flex items-center justify-center bg-background relative px-4 py-20 sm:px-6">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
-      <div className="max-w-md w-full p-8 bg-card rounded-2xl shadow-xl border border-border">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Sign in to CareSync</h1>
+      <div className="max-w-md w-full p-5 sm:p-8 bg-card rounded-2xl shadow-xl border border-border">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Sign in to CareSync</h1>
           <p className="text-sm text-muted-foreground mt-2">บัญชีฟรีสำหรับพยาบาลและครอบครัว — ไม่มีค่าใช้จ่าย</p>
         </div>
 

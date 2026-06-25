@@ -9,7 +9,7 @@ export default async function NewPatientPage({ params }: { params: Promise<{ org
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <main className="pt-24 pb-12">
+      <main className="app-nav-offset pb-12">
         <PatientRegistrationWizard />
       </main>
     </div>
