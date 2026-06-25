@@ -119,7 +119,6 @@ export async function GET(request: Request) {
         hasStripeCustomer: !!subscription.stripeCustomerId,
         hasStripeSubscription: !!subscription.stripeSubId,
         isTrial: isTrialSubscription(subscription),
-        trialDays: CARD_TRIAL_DAYS,
         isOwner: true,
       },
     });
