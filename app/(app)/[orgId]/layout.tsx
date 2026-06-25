@@ -43,9 +43,11 @@ export default async function OrgLayout(props: {
   let isGracePeriod = false;
   let isReadOnly = false;
   let graceHoursRemaining = 0;
+  let lockReason: "not_subscribed" | "expired" = "expired";
 
   if (plan === "FREE") {
     isReadOnly = true;
+    lockReason = "not_subscribed";
   } else if (status === "PAST_DUE" || (sub?.currentPeriodEnd && sub.currentPeriodEnd < new Date())) {
     const expiredAt = sub?.currentPeriodEnd ? sub.currentPeriodEnd.getTime() : 0;
     const now = new Date().getTime();
@@ -57,9 +59,11 @@ export default async function OrgLayout(props: {
         graceHoursRemaining = Math.max(1, Math.floor(48 - hoursExpired));
       } else {
         isReadOnly = true;
+        lockReason = "expired";
       }
     } else {
       isReadOnly = true;
+      lockReason = "expired";
     }
   }
 
@@ -73,6 +77,7 @@ export default async function OrgLayout(props: {
         orgId={orgId}
         orgName={org.name}
         isOwner={isOwner}
+        lockReason={lockReason}
       >
         {props.children}
       </SoftLockWrapper>
