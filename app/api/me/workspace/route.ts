@@ -33,34 +33,34 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
     });
 
-    // No memberships — send to onboarding
-    if (memberships.length === 0) {
+    const activeMemberships = memberships.filter((m) => !m.organization.deletedAt);
+
+    // No active memberships - send to onboarding
+    if (activeMemberships.length === 0) {
       return NextResponse.json({ redirect: "/onboarding" });
     }
 
-    // Single workspace — auto-redirect (original behavior)
-    const hasDeletedWorkspace = memberships.some((m) => m.organization.deletedAt);
-
-    if (memberships.length === 1 && !hasDeletedWorkspace) {
-      const orgId = memberships[0].organizationId;
+    // Single active workspace - auto-redirect (original behavior)
+    if (activeMemberships.length === 1) {
+      const orgId = activeMemberships[0].organizationId;
       const access = await getPortalAccess(orgId, userId);
       const redirect = access?.homePath ?? `/${orgId}/dashboard`;
       return NextResponse.json({ redirect });
     }
 
-    // Multiple workspaces — return list for WorkspaceSelector
+    // Multiple active workspaces - return list for WorkspaceSelector
     const workspaces = await Promise.all(
-      memberships.map(async (m) => {
+      activeMemberships.map(async (m) => {
         const access = await getPortalAccess(m.organizationId, userId);
         const patient = m.organization.patients[0];
         return {
           id: m.organization.id,
           name: m.organization.name,
           role: m.role,
-          isDeleted: Boolean(m.organization.deletedAt),
-          deletedAt: m.organization.deletedAt?.toISOString() ?? null,
+          isDeleted: false,
+          deletedAt: null,
           roleLabel: access?.roleLabel ?? "สมาชิก",
-          homePath: m.organization.deletedAt ? "/dashboard" : access?.homePath ?? `/${m.organizationId}/dashboard`,
+          homePath: access?.homePath ?? `/${m.organizationId}/dashboard`,
           patientName: patient
             ? `${patient.firstName} ${patient.lastName}`
             : null,
