@@ -76,7 +76,7 @@ export default function SoftLockWrapper({
           <div className="bg-gray-800 text-white px-4 py-3 text-center sm:text-left flex flex-col sm:flex-row items-center justify-center gap-3 text-sm font-medium">
             <span>
               {isNotSubscribed
-                ? "ห้องนี้ยังไม่ได้เริ่มแพ็กเกจ ทดลองใช้งานฟรี 14 วันเพื่อเริ่มบันทึกข้อมูลและใช้งานฟีเจอร์ทั้งหมด"
+                ? "เริ่มต้นใช้ CareSync Pro ฟรี 14 วันเพื่อเริ่มบันทึกข้อมูลและใช้งานฟีเจอร์ทั้งหมด"
                 : "โหมดดูข้อมูลย้อนหลัง (Read-Only) - ไม่สามารถบันทึกข้อมูลใหม่ได้ โปรดต่ออายุการใช้งาน"}
             </span>
             {isOwner ? (
