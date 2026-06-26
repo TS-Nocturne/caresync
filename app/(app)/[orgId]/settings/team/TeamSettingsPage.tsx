@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 
 interface MemberRow {
   userId: string;
@@ -23,6 +24,18 @@ interface InviteRow {
   isExpired: boolean;
 }
 
+type LineAccountStatus = {
+  connected: boolean;
+  connectedAt: string | null;
+  lineEnabled: boolean;
+};
+
+type OAuth2SignInClient = {
+  signIn: {
+    oauth2: (options: { providerId: string; callbackURL: string }) => Promise<unknown>;
+  };
+};
+
 export default function TeamSettingsPage() {
   const params = useParams();
   const orgId = params.orgId as string;
@@ -39,6 +52,10 @@ export default function TeamSettingsPage() {
   const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
+  const [lineAccount, setLineAccount] = useState<LineAccountStatus | null>(null);
+  const [lineLoading, setLineLoading] = useState(true);
+  const [lineConnecting, setLineConnecting] = useState(false);
+  const [lineError, setLineError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -61,13 +78,29 @@ export default function TeamSettingsPage() {
     }
   }, [orgId]);
 
+  const loadLineAccount = useCallback(async () => {
+    setLineLoading(true);
+    setLineError("");
+    try {
+      const res = await fetch("/api/me/line-account", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setLineAccount(json.data);
+    } catch (err) {
+      setLineError(err instanceof Error ? err.message : "โหลดสถานะ LINE ไม่สำเร็จ");
+    } finally {
+      setLineLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void load();
+      void loadLineAccount();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [load]);
+  }, [load, loadLineAccount]);
 
   const createInvite = async (portalRole: "CAREGIVER" | "FAMILY") => {
     setCreating(portalRole);
@@ -148,6 +181,21 @@ export default function TeamSettingsPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const connectLine = async () => {
+    setLineConnecting(true);
+    setLineError("");
+
+    try {
+      await (authClient as OAuth2SignInClient).signIn.oauth2({
+        providerId: "line",
+        callbackURL: window.location.pathname,
+      });
+    } catch (err) {
+      setLineError(err instanceof Error ? err.message : "เชื่อมบัญชี LINE ไม่สำเร็จ");
+      setLineConnecting(false);
+    }
+  };
+
   return (
     <>
       <main className="pt-24 pb-12 max-w-4xl mx-auto px-4 sm:px-6">
@@ -189,6 +237,37 @@ export default function TeamSettingsPage() {
             <p className="text-sm text-muted-foreground">เฉพาะแอดมิน (เจ้าของแพลน) — อัปเกรดเพื่อเพิ่มสิทธิ์การเชิญสมาชิก</p>
           </div>
         </Link>
+
+        <section className="bg-card border border-border rounded-2xl p-6 mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">บัญชี LINE</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                เชื่อมบัญชี LINE เพื่อรับการแจ้งเตือนและใช้งานผ่าน LINE ได้ต่อเนื่อง
+              </p>
+              {lineError && <p className="mt-2 text-sm text-rose-600">{lineError}</p>}
+            </div>
+            {lineLoading ? (
+              <div className="h-10 w-32 rounded-xl bg-muted animate-pulse" />
+            ) : lineAccount?.connected ? (
+              <div className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                เชื่อมต่อแล้ว
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={connectLine}
+                disabled={lineConnecting || lineAccount?.lineEnabled === false}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#06C755] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#05b84f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-black leading-none text-[#06C755]">
+                  LINE
+                </span>
+                {lineConnecting ? "กำลังเชื่อมต่อ..." : "เชื่อมบัญชี LINE"}
+              </button>
+            )}
+          </div>
+        </section>
 
         <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
