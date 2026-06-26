@@ -211,32 +211,6 @@ export default function CaregiverDashboard() {
     setValidationIssues([]);
   };
 
-  const handleEnableAi = async () => {
-    if (!patient) return;
-    try {
-      const res = await fetch("/api/consent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgId,
-          patientId: patient.id,
-          consentType: "AI_PROCESSING",
-          granted: true,
-          grantedByName: session?.user?.name || "User",
-          grantedByRelation: "Self/Family via Dashboard",
-        }),
-      });
-      if (res.ok) {
-        window.location.reload();
-      } else {
-        const json = await res.json();
-        setError(json.error || "Failed to enable AI");
-      }
-    } catch {
-      setError("Failed to enable AI");
-    }
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       {showConfirmDialog && validationIssues.length > 0 && (
@@ -313,11 +287,9 @@ export default function CaregiverDashboard() {
             selected={selectedSymptoms}
             notes={symptomNotes}
             reviewed={symptomReviewed}
-            aiEnabled={patient?.aiEnabled}
             onSelectedChange={setSelectedSymptoms}
             onNotesChange={setSymptomNotes}
             onReviewedChange={setSymptomReviewed}
-            onEnableAi={handleEnableAi}
           />
         </div>
       </div>
@@ -331,6 +303,7 @@ export default function CaregiverDashboard() {
       <div className="sticky bottom-4 flex justify-center animate-slide-up">
         <button
           onClick={handleSave}
+          data-write-action="true"
           disabled={saving || !patient || !symptomReviewed || pendingMedCount > 0}
           className={`px-8 py-4 rounded-2xl text-lg font-semibold shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
             saved

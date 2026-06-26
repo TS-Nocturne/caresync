@@ -19,20 +19,16 @@ export default function AbnormalSymptoms({
   selected,
   notes,
   reviewed,
-  aiEnabled,
   onSelectedChange,
   onNotesChange,
   onReviewedChange,
-  onEnableAi,
 }: {
   selected: string[];
   notes: string;
   reviewed: boolean;
-  aiEnabled?: boolean;
   onSelectedChange: (selected: string[]) => void;
   onNotesChange: (notes: string) => void;
   onReviewedChange: (reviewed: boolean) => void;
-  onEnableAi?: () => void;
 }) {
   const toggle = (id: string) => {
     onSelectedChange(
@@ -61,6 +57,7 @@ export default function AbnormalSymptoms({
             <button
               key={symptom.id}
               type="button"
+              aria-pressed={isActive}
               onClick={() => toggle(symptom.id)}
               className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200 ${
                 isActive
@@ -91,48 +88,26 @@ export default function AbnormalSymptoms({
         <label className="text-sm font-medium text-muted-foreground mb-2 block">
           หมายเหตุเพิ่มเติม
         </label>
-        <div className="relative">
-          <textarea
-            value={notes}
-            onChange={(event) => onNotesChange(event.target.value)}
-            placeholder="บันทึกรายละเอียดอาการสำหรับการประมวลผลข้อมูลเฝ้าระวัง..."
-            rows={3}
-            disabled={aiEnabled === false}
-            className={`w-full rounded-xl border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none ${
-              aiEnabled === false ? "blur-sm opacity-50" : ""
-            }`}
-          />
-          {aiEnabled === false && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 text-center rounded-xl bg-background/40 backdrop-blur-[2px]">
-              <p className="text-sm font-semibold text-foreground mb-1">
-                🔒 ปลดล็อกขุมพลัง AI เพื่อดูแลคุณแม่
-              </p>
-              <p className="text-xs text-muted-foreground mb-3 max-w-[250px]">
-                เปิดให้ AI ช่วยวิเคราะห์อาการและแจ้งเตือนคุณแบบเรียลไทม์ (รวมอยู่ในแพ็กเกจของคุณแล้ว)
-              </p>
-              <button
-                type="button"
-                onClick={onEnableAi}
-                className="px-4 py-2 bg-primary text-primary-foreground text-xs font-medium rounded-lg hover:bg-primary-dark transition-colors shadow-sm"
-              >
-                เปิดใช้งาน AI ทันที
-              </button>
-            </div>
-          )}
-        </div>
+        <textarea
+          value={notes}
+          onChange={(event) => onNotesChange(event.target.value)}
+          placeholder="บันทึกรายละเอียดอาการเพิ่มเติม..."
+          rows={3}
+          className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+        />
       </div>
 
       <label className="flex items-start gap-3 mt-4 p-3 rounded-xl border-2 border-dashed border-primary/30 cursor-pointer hover:bg-muted/30 transition-colors">
         <input
           type="checkbox"
           checked={reviewed}
-          onChange={(e) => onReviewedChange(e.target.checked)}
+          onChange={(event) => onReviewedChange(event.target.checked)}
           className="mt-0.5 h-4 w-4 rounded border-input"
         />
         <span className="text-sm">
           <span className="font-medium text-foreground">ยืนยันการตรวจอาการเบื้องต้นแล้ว</span>
           <span className="block text-muted-foreground text-xs mt-0.5">
-            บังคับกรอก — ติ๊กเมื่อตรวจอาการครบแล้ว (ไม่มีอาการผิดปกติ หรือเลือกอาการที่พบแล้ว)
+            ติ๊กเมื่อเลือกอาการที่พบแล้ว หรือไม่มีอาการผิดปกติ
           </span>
         </span>
       </label>
