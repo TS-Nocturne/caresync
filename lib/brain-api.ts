@@ -42,6 +42,24 @@ export function getBrainBaseUrl() {
   return process.env.FASTAPI_URL ?? "http://127.0.0.1:8000";
 }
 
+function parseBrainResponse(raw: string) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return raw;
+  }
+}
+
+function formatBrainErrorDetails(data: unknown, raw: string) {
+  if (data && typeof data === "object") {
+    const maybeError = data as { detail?: unknown; error?: unknown; message?: unknown };
+    const details = maybeError.detail ?? maybeError.error ?? maybeError.message ?? data;
+    return typeof details === "string" ? details : JSON.stringify(details);
+  }
+  return raw || "FastAPI brain request failed";
+}
+
 function brainHeaders(init?: RequestInit): HeadersInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -73,10 +91,17 @@ export async function callBrain<T>(path: string, init?: RequestInit, retries = 1
 
       clearTimeout(id);
 
-      const data = await response.json().catch(() => null);
+      const raw = await response.text();
+      const data = parseBrainResponse(raw);
       if (!response.ok) {
-        const message = data?.detail ?? data?.error ?? "FastAPI brain request failed";
-        throw new Error(message);
+        const details = formatBrainErrorDetails(data, raw);
+        console.error("🔥 FastAPI Error Details:", {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          body: details,
+        });
+        throw new Error(`FastAPI Error ${response.status}: ${details}`);
       }
       return data as T;
     } catch (err) {
