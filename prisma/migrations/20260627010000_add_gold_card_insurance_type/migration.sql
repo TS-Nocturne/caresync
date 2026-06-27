@@ -1,0 +1,1 @@
+ALTER TYPE "InsuranceType" ADD VALUE 'GOLD_CARD';

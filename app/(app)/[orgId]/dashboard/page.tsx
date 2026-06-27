@@ -17,6 +17,11 @@ interface PatientRow {
   pineconeSyncStatus: "PENDING" | "SUCCESS" | "FAILED";
 }
 
+interface PatientRegistrationDraftRow {
+  currentStep: number;
+  updatedAt: string;
+}
+
 const statusLabels: Record<PatientRow["status"], { label: string; className: string }> = {
   stable: { label: "Stable", className: "bg-emerald-100 text-emerald-700" },
   monitoring: { label: "Monitoring", className: "bg-amber-100 text-amber-700" },
@@ -39,6 +44,7 @@ export default function OrgDashboard() {
   const { data: activeOrg } = useActiveOrganization();
   const { access } = usePortalAccess(orgId);
   const [patients, setPatients] = useState<PatientRow[]>([]);
+  const [draft, setDraft] = useState<PatientRegistrationDraftRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retryingPatientId, setRetryingPatientId] = useState<string | null>(null);
@@ -50,6 +56,12 @@ export default function OrgDashboard() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Failed to load patients");
         setPatients(json.data ?? []);
+
+        const draftRes = await fetch(`/api/patient-registration-draft?orgId=${orgId}`);
+        if (draftRes.ok) {
+          const draftJson = await draftRes.json();
+          setDraft(draftJson.data ?? null);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "โหลดข้อมูลไม่สำเร็จ");
       } finally {
@@ -99,6 +111,25 @@ export default function OrgDashboard() {
         </div>
 
         {/* Team & Billing links moved to Settings via Navigation menu */}
+
+        {access?.canAccessDashboard && draft && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold">มีข้อมูลผู้สูงอายุที่กรอกค้างไว้</p>
+                <p className="text-sm text-amber-800/80">
+                  ค้างอยู่ที่ขั้นตอนที่ {draft.currentStep} • แก้ไขล่าสุด {formatRelativeTime(draft.updatedAt)}
+                </p>
+              </div>
+              <Link
+                href={`/${orgId}/patients/new?resume=1`}
+                className="inline-flex items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-700"
+              >
+                กรอกข้อมูลต่อ
+              </Link>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           {access?.canAccessCaregiver && (
@@ -184,6 +215,7 @@ export default function OrgDashboard() {
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">Last Update</th>
                     <th className="pb-3 font-medium">Assigned Caregiver</th>
+                    {access?.canAccessDashboard && <th className="pb-3 font-medium text-right">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="text-sm text-foreground">
@@ -217,6 +249,16 @@ export default function OrgDashboard() {
                         </td>
                         <td className="py-4">{formatRelativeTime(patient.lastUpdate)}</td>
                         <td className="py-4">{patient.caregiverName ?? "—"}</td>
+                        {access?.canAccessDashboard && (
+                          <td className="py-4 text-right">
+                            <Link
+                              href={`/${orgId}/patients/${patient.id}/edit`}
+                              className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                            >
+                              แก้ไขข้อมูล
+                            </Link>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}

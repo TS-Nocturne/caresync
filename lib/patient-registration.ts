@@ -1,5 +1,5 @@
 export type MobilityStatus = "INDEPENDENT" | "ASSISTED" | "WHEELCHAIR" | "BEDBOUND";
-export type InsuranceType = "REIMBURSEMENT" | "SOCIAL_SECURITY" | "SELF_PAY";
+export type InsuranceType = "REIMBURSEMENT" | "SOCIAL_SECURITY" | "GOLD_CARD" | "SELF_PAY";
 export type TimeOfDay = "MORNING" | "NOON" | "EVENING" | "BEDTIME";
 
 export interface EmergencyContactInput {

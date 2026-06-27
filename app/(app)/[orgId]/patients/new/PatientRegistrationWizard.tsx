@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   COMMON_ALLERGIES,
@@ -35,6 +35,7 @@ const MOBILITY_OPTIONS: { value: MobilityStatus; label: string }[] = [
 const INSURANCE_OPTIONS: { value: InsuranceType; label: string }[] = [
   { value: "REIMBURSEMENT", label: "เบิกได้" },
   { value: "SOCIAL_SECURITY", label: "ประกันสังคม" },
+  { value: "GOLD_CARD", label: "บัตรทอง" },
   { value: "SELF_PAY", label: "จ่ายเอง" },
 ];
 
@@ -52,10 +53,92 @@ const emptyContact = (): EmergencyContactInput => ({
   isPrimary: false,
 });
 
-export default function PatientRegistrationWizard() {
+type DraftFormData = {
+  consentRelation: string;
+  consentMandatory: boolean;
+  consentOptional: boolean;
+  firstName: string;
+  lastName: string;
+  nickname: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodType: string;
+  weightKg: string;
+  heightCm: string;
+  roomNumber: string;
+  underlyingDiseases: string[];
+  customDisease: string;
+  allergies: string[];
+  customAllergy: string;
+  mobilityStatus: MobilityStatus;
+  baselineSystolic: string;
+  baselineDiastolic: string;
+  baselineTemperature: string;
+  baselineHeartRate: string;
+  baselineOxygenSat: string;
+  medications: MedicationInput[];
+  preferredHospital: string;
+  hospitalNumber: string;
+  insuranceType: InsuranceType;
+  emergencyContacts: EmergencyContactInput[];
+};
+
+type DraftResponse = {
+  error?: string;
+  data?: {
+    currentStep: number;
+    data: Partial<DraftFormData>;
+    updatedAt: string;
+  } | null;
+};
+
+const stringValue = (value: unknown, fallback = "") =>
+  typeof value === "string" ? value : fallback;
+
+const booleanValue = (value: unknown) => value === true;
+
+const stringListValue = (value: unknown) =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+const hasDraftContent = (data: DraftFormData) =>
+  Boolean(
+    data.consentRelation ||
+      data.consentMandatory ||
+      data.consentOptional ||
+      data.firstName ||
+      data.lastName ||
+      data.nickname ||
+      data.dateOfBirth ||
+      data.bloodType ||
+      data.weightKg ||
+      data.heightCm ||
+      data.roomNumber ||
+      data.underlyingDiseases.length ||
+      data.customDisease ||
+      data.allergies.length ||
+      data.customAllergy ||
+      data.baselineSystolic ||
+      data.baselineDiastolic ||
+      data.baselineTemperature ||
+      data.baselineHeartRate ||
+      data.baselineOxygenSat ||
+      data.medications.some((m) => m.name || m.dosage || m.instruction) ||
+      data.preferredHospital ||
+      data.hospitalNumber ||
+      data.insuranceType !== "SOCIAL_SECURITY" ||
+      data.emergencyContacts.some((c) => c.name || c.phone || c.relation)
+  );
+
+interface PatientRegistrationWizardProps {
+  mode?: "create" | "edit";
+  patientId?: string;
+}
+
+export default function PatientRegistrationWizard({ mode = "create", patientId }: PatientRegistrationWizardProps) {
   const params = useParams();
   const router = useRouter();
   const orgId = params.orgId as string;
+  const isEditMode = mode === "edit";
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -64,6 +147,10 @@ export default function PatientRegistrationWizard() {
   const [consentMandatory, setConsentMandatory] = useState(false);
   const [consentOptional, setConsentOptional] = useState(false);
   const [showAiWarning, setShowAiWarning] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  const [draftNotice, setDraftNotice] = useState("");
+  const submittingRef = useRef(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -101,6 +188,73 @@ export default function PatientRegistrationWizard() {
   const toggleItem = (list: string[], item: string, setter: (v: string[]) => void) => {
     setter(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   };
+
+  const resetForm = useCallback(() => {
+    setStep(1);
+    setError("");
+    setConsentRelation("");
+    setConsentMandatory(false);
+    setConsentOptional(false);
+    setFirstName("");
+    setLastName("");
+    setNickname("");
+    setDateOfBirth("");
+    setGender("female");
+    setBloodType("");
+    setWeightKg("");
+    setHeightCm("");
+    setRoomNumber("");
+    setUnderlyingDiseases([]);
+    setCustomDisease("");
+    setAllergies([]);
+    setCustomAllergy("");
+    setMobilityStatus("INDEPENDENT");
+    setBaselineSystolic("");
+    setBaselineDiastolic("");
+    setBaselineTemperature("");
+    setBaselineHeartRate("");
+    setBaselineOxygenSat("");
+    setMedications([emptyMed()]);
+    setPreferredHospital("");
+    setHospitalNumber("");
+    setInsuranceType("SOCIAL_SECURITY");
+    setEmergencyContacts([{ ...emptyContact(), isPrimary: true }]);
+  }, []);
+
+  const applyDraft = useCallback((data: Partial<DraftFormData>, currentStep: number) => {
+    setConsentRelation(stringValue(data.consentRelation));
+    setConsentMandatory(booleanValue(data.consentMandatory));
+    setConsentOptional(booleanValue(data.consentOptional));
+    setFirstName(stringValue(data.firstName));
+    setLastName(stringValue(data.lastName));
+    setNickname(stringValue(data.nickname));
+    setDateOfBirth(stringValue(data.dateOfBirth));
+    setGender(stringValue(data.gender, "female"));
+    setBloodType(stringValue(data.bloodType));
+    setWeightKg(stringValue(data.weightKg));
+    setHeightCm(stringValue(data.heightCm));
+    setRoomNumber(stringValue(data.roomNumber));
+    setUnderlyingDiseases(stringListValue(data.underlyingDiseases));
+    setCustomDisease(stringValue(data.customDisease));
+    setAllergies(stringListValue(data.allergies));
+    setCustomAllergy(stringValue(data.customAllergy));
+    setMobilityStatus((data.mobilityStatus ?? "INDEPENDENT") as MobilityStatus);
+    setBaselineSystolic(stringValue(data.baselineSystolic));
+    setBaselineDiastolic(stringValue(data.baselineDiastolic));
+    setBaselineTemperature(stringValue(data.baselineTemperature));
+    setBaselineHeartRate(stringValue(data.baselineHeartRate));
+    setBaselineOxygenSat(stringValue(data.baselineOxygenSat));
+    setMedications(Array.isArray(data.medications) && data.medications.length ? data.medications : [emptyMed()]);
+    setPreferredHospital(stringValue(data.preferredHospital));
+    setHospitalNumber(stringValue(data.hospitalNumber));
+    setInsuranceType((data.insuranceType ?? "SOCIAL_SECURITY") as InsuranceType);
+    setEmergencyContacts(
+      Array.isArray(data.emergencyContacts) && data.emergencyContacts.length
+        ? data.emergencyContacts
+        : [{ ...emptyContact(), isPrimary: true }]
+    );
+    setStep(Math.min(Math.max(currentStep, 1), STEPS.length));
+  }, []);
 
   const validateStep = (s: number): string | null => {
     if (s === 1) {
@@ -153,6 +307,148 @@ export default function PatientRegistrationWizard() {
     emergencyContacts, medications, consentRelation, consentMandatory, consentOptional
   ]);
 
+  const draftData = useMemo((): DraftFormData => ({
+    consentRelation,
+    consentMandatory,
+    consentOptional,
+    firstName,
+    lastName,
+    nickname,
+    dateOfBirth,
+    gender,
+    bloodType,
+    weightKg,
+    heightCm,
+    roomNumber,
+    underlyingDiseases,
+    customDisease,
+    allergies,
+    customAllergy,
+    mobilityStatus,
+    baselineSystolic,
+    baselineDiastolic,
+    baselineTemperature,
+    baselineHeartRate,
+    baselineOxygenSat,
+    medications,
+    preferredHospital,
+    hospitalNumber,
+    insuranceType,
+    emergencyContacts,
+  }), [
+    consentRelation, consentMandatory, consentOptional, firstName, lastName, nickname,
+    dateOfBirth, gender, bloodType, weightKg, heightCm, roomNumber, underlyingDiseases,
+    customDisease, allergies, customAllergy, mobilityStatus, baselineSystolic,
+    baselineDiastolic, baselineTemperature, baselineHeartRate, baselineOxygenSat,
+    medications, preferredHospital, hospitalNumber, insuranceType, emergencyContacts
+  ]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadDraft() {
+      try {
+        const res = await fetch(`/api/patient-registration-draft?orgId=${orgId}`);
+        const json = (await res.json()) as DraftResponse;
+        if (!res.ok) throw new Error(json && "error" in json ? String(json.error) : "โหลดแบบร่างไม่สำเร็จ");
+
+        if (!cancelled && json.data) {
+          applyDraft(json.data.data, json.data.currentStep);
+          setDraftSavedAt(json.data.updatedAt);
+          setDraftNotice("โหลดข้อมูลที่กรอกค้างไว้แล้ว");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setDraftNotice(err instanceof Error ? err.message : "โหลดแบบร่างไม่สำเร็จ");
+        }
+      } finally {
+        if (!cancelled) setDraftReady(true);
+      }
+    }
+
+    loadDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyDraft, isEditMode, orgId]);
+
+  useEffect(() => {
+    if (!isEditMode || !patientId) return;
+
+    let cancelled = false;
+
+    async function loadPatientForEdit() {
+      try {
+        const res = await fetch(`/api/patients/${patientId}?orgId=${orgId}`);
+        const json = (await res.json()) as DraftResponse;
+        if (!res.ok) throw new Error(json.error || "โหลดข้อมูลผู้สูงอายุไม่สำเร็จ");
+        if (json.data && !cancelled) {
+          applyDraft(json.data.data, json.data.currentStep);
+          setDraftNotice("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "โหลดข้อมูลผู้สูงอายุไม่สำเร็จ");
+        }
+      } finally {
+        if (!cancelled) setDraftReady(true);
+      }
+    }
+
+    loadPatientForEdit();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyDraft, isEditMode, orgId, patientId]);
+
+  useEffect(() => {
+    if (isEditMode || !draftReady || submittingRef.current || !hasDraftContent(draftData)) return;
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const res = await fetch("/api/patient-registration-draft", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orgId, currentStep: step, data: draftData }),
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error("บันทึกแบบร่างไม่สำเร็จ");
+        setDraftSavedAt(new Date().toISOString());
+        setDraftNotice("");
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setDraftNotice(err instanceof Error ? err.message : "บันทึกแบบร่างไม่สำเร็จ");
+      }
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [draftData, draftReady, isEditMode, orgId, step]);
+
+  const clearDraft = useCallback(async () => {
+    submittingRef.current = true;
+    setDraftNotice("");
+    try {
+      await fetch(`/api/patient-registration-draft?orgId=${orgId}`, { method: "DELETE" });
+      resetForm();
+      setDraftSavedAt(null);
+      setDraftNotice("ล้างแบบร่างแล้ว");
+    } catch {
+      setDraftNotice("ล้างแบบร่างไม่สำเร็จ");
+    } finally {
+      submittingRef.current = false;
+    }
+  }, [orgId, resetForm]);
+
   const handleNext = () => {
     const err = validateStep(step);
     if (err) { setError(err); return; }
@@ -161,6 +457,7 @@ export default function PatientRegistrationWizard() {
   };
 
   const submitData = async (overrideConsentOptional: boolean | null = null) => {
+    submittingRef.current = true;
     setSaving(true);
     setError("");
     try {
@@ -169,22 +466,30 @@ export default function PatientRegistrationWizard() {
         finalPayload.consentOptional = overrideConsentOptional;
       }
 
-      const res = await fetch("/api/patients", {
-        method: "POST",
+      const res = await fetch(isEditMode && patientId ? `/api/patients/${patientId}` : "/api/patients", {
+        method: isEditMode ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalPayload),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "ลงทะเบียนไม่สำเร็จ");
-      router.push(`/${orgId}/dashboard?registered=1`);
+      if (!res.ok) throw new Error(json.error || (isEditMode ? "แก้ไขข้อมูลไม่สำเร็จ" : "ลงทะเบียนไม่สำเร็จ"));
+      if (!isEditMode) {
+        await fetch(`/api/patient-registration-draft?orgId=${orgId}`, { method: "DELETE" }).catch(() => null);
+      }
+      router.push(`/${orgId}/dashboard?${isEditMode ? "updated=1" : "registered=1"}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "ลงทะเบียนไม่สำเร็จ");
+      setError(err instanceof Error ? err.message : (isEditMode ? "แก้ไขข้อมูลไม่สำเร็จ" : "ลงทะเบียนไม่สำเร็จ"));
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };
 
   const handleInitialSubmit = () => {
+    if (isEditMode) {
+      submitData();
+      return;
+    }
     if (!consentOptional) {
       setShowAiWarning(true);
       return;
@@ -243,10 +548,28 @@ export default function PatientRegistrationWizard() {
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">ลงทะเบียนผู้สูงอายุ</h1>
+        <h1 className="text-2xl font-bold">{isEditMode ? "แก้ไขข้อมูลผู้สูงอายุ" : "ลงทะเบียนผู้สูงอายุ"}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          ข้อมูลจะถูก index ลง Pinecone เพื่อใช้แสดงข้อมูลสุขภาพประกอบการติดตามอาการ
+          ข้อมูลจะถูกบันทึกลงฐานข้อมูล เพื่อใช้แสดงข้อมูลสุขภาพ
         </p>
+        {!isEditMode && (
+        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted-foreground">
+            {!draftReady
+              ? "กำลังตรวจสอบข้อมูลที่กรอกค้างไว้..."
+              : draftNotice || (draftSavedAt ? "บันทึกแบบร่างอัตโนมัติแล้ว" : "ระบบจะบันทึกแบบร่างอัตโนมัติระหว่างกรอกข้อมูล")}
+          </span>
+          {draftSavedAt && (
+            <button
+              type="button"
+              onClick={clearDraft}
+              className="self-start text-sm font-medium text-rose-600 hover:underline sm:self-auto"
+            >
+              เริ่มใหม่
+            </button>
+          )}
+        </div>
+        )}
       </div>
 
       {/* Step indicator */}
@@ -647,7 +970,7 @@ export default function PatientRegistrationWizard() {
               <p><span className="font-medium">ยา:</span> {payload.medications.length} รายการ</p>
               <p><span className="font-medium">โรงพยาบาล:</span> {preferredHospital || "—"} (HN {hospitalNumber || "—"})</p>
               <p className="text-xs text-muted-foreground pt-2">
-                หลังบันทึก ระบบจะ index ข้อมูลลง Pinecone อัตโนมัติเพื่อใช้แสดงข้อมูลประกอบการติดตามอาการ
+                หลังบันทึก ข้อมูลจะถูกบันทึกลงฐานข้อมูล เพื่อใช้แสดงข้อมูลสุขภาพ
               </p>
             </div>
           </>
@@ -679,7 +1002,7 @@ export default function PatientRegistrationWizard() {
             disabled={saving}
             className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
           >
-            {saving ? "กำลังบันทึก..." : "บันทึก & Index ลง Pinecone"}
+            {saving ? "กำลังบันทึก..." : isEditMode ? "บันทึกการแก้ไข" : "บันทึกข้อมูล"}
           </button>
         )}
       </div>
