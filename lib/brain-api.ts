@@ -75,7 +75,7 @@ function brainHeaders(init?: RequestInit): HeadersInit {
   return headers;
 }
 
-export async function callBrain<T>(path: string, init?: RequestInit, retries = 1, timeoutMs = 8000): Promise<T> {
+export async function callBrain<T>(path: string, init?: RequestInit, retries = 1, timeoutMs = 60000): Promise<T> {
   const url = `${getBrainBaseUrl()}${path}`;
   let lastError: Error | null = null;
 
