@@ -105,7 +105,7 @@ export default function OrgDashboard() {
           </h1>
           <p className="text-muted-foreground mt-1">
             {access?.isOwner
-              ? "จัดการ workspace — เชิญทีมและเลือกแผนการใช้งาน"
+              ? "ภาพรวม Workspace — ติดตามสถานะผู้ป่วยและเข้าสู่ระบบบันทึกข้อมูล"
               : "Manage your patients, caregivers, and alerts"}
           </p>
         </div>
