@@ -39,7 +39,8 @@ export interface BrainAssessmentResult {
 }
 
 export function getBrainBaseUrl() {
-  return process.env.FASTAPI_URL ?? "http://127.0.0.1:8000";
+  const baseUrl = (process.env.FASTAPI_URL || process.env.AI_API_URL)?.trim();
+  return baseUrl ? baseUrl.replace(/\/+$/, "") : "http://127.0.0.1:8000";
 }
 
 function parseBrainResponse(raw: string) {
@@ -67,8 +68,9 @@ function brainHeaders(init?: RequestInit): HeadersInit {
   new Headers(init?.headers).forEach((value, key) => {
     headers[key] = value;
   });
-  if (process.env.BRAIN_INTERNAL_API_KEY) {
-    headers["X-Internal-API-Key"] = process.env.BRAIN_INTERNAL_API_KEY;
+  const internalApiKey = process.env.BRAIN_INTERNAL_API_KEY?.trim();
+  if (internalApiKey) {
+    headers["X-Internal-API-Key"] = internalApiKey;
   }
   return headers;
 }
