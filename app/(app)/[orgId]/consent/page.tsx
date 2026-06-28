@@ -38,7 +38,7 @@ export default function ConsentPage() {
   const [patient, setPatient] = useState<PatientSummary | null>(null);
   const [granted, setGranted] = useState<Record<string, boolean>>({});
   const [grantedByName, setGrantedByName] = useState("");
-  const [grantedByRelation, setGrantedByRelation] = useState("ผู้ป่วยเอง");
+  const [grantedByRelation, setGrantedByRelation] = useState("ผู้สูงอายุเอง");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -101,7 +101,7 @@ export default function ConsentPage() {
         <h1 className="text-2xl font-bold">การยินยอมข้อมูล (PDPA / HIPAA)</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {patient
-            ? `ผู้ป่วย: ${patient.firstName} ${patient.lastName}`
+            ? `ผู้สูงอายุ: ${patient.firstName} ${patient.lastName}`
             : "กำลังโหลด..."}
         </p>
       </div>
@@ -120,7 +120,7 @@ export default function ConsentPage() {
           onChange={(e) => setGrantedByRelation(e.target.value)}
           className="w-full rounded-xl border border-input px-4 py-2.5 text-sm"
         >
-          <option value="ผู้ป่วยเอง">ผู้ป่วยเอง</option>
+          <option value="ผู้สูงอายุเอง">ผู้สูงอายุเอง</option>
           <option value="บุตร/ธิดา">บุตร/ธิดา</option>
           <option value="คู่สมรส">คู่สมรส</option>
           <option value="ผู้ปกครองตามกฎหมาย">ผู้ปกครองตามกฎหมาย</option>

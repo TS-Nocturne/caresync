@@ -78,7 +78,7 @@ export default function Navigation() {
         { href: `/${orgId}/dashboard`, label: "Dashboard", icon: "🏠", show: access?.canAccessDashboard },
         { href: `/${orgId}/caregiver`, label: "ผู้ดูแล", icon: "👨‍⚕️", show: access?.canAccessCaregiver },
         { href: `/${orgId}/family`, label: "ครอบครัว", icon: "👨‍👩‍👧‍👦", show: access?.canAccessFamily },
-        { href: `/${orgId}/emergency`, label: "ฉุกเฉิน", icon: "🚨", show: access?.canAccessFamily },
+        { href: `/${orgId}/emergency`, label: "ติดต่อด่วน", icon: "☎️", show: access?.canAccessFamily },
         { href: `/${orgId}/settings/team`, label: "ตั้งค่า", icon: "⚙️", show: access?.canManageTeam },
       ]
     : [];

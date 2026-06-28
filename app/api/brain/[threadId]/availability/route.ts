@@ -47,7 +47,7 @@ export async function POST(request: Request, context: { params: Promise<{ thread
     await requireWritableSubscription(body.orgId);
     const thread = await requireBrainThreadAccess(body.orgId, session.user.id, threadId);
     const memberName = sanitizeText(body.memberName, 120) || session.user.name;
-    const note = sanitizeText(body.note, 500) || "available_for_doctor_visit";
+    const note = sanitizeText(body.note, 500) || "available_for_family_follow_up";
 
     const result = await callBrain<BrainAssessmentResult>(`/brain/${threadId}/availability`, {
       method: "POST",

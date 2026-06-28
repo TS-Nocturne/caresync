@@ -1,6 +1,7 @@
 export type MobilityStatus = "INDEPENDENT" | "ASSISTED" | "WHEELCHAIR" | "BEDBOUND";
 export type InsuranceType = "REIMBURSEMENT" | "SOCIAL_SECURITY" | "GOLD_CARD" | "SELF_PAY";
 export type TimeOfDay = "MORNING" | "NOON" | "EVENING" | "BEDTIME";
+export type MedicationFrequency = "DAILY" | "EVERY_OTHER_DAY" | "CUSTOM_DAYS";
 
 export interface EmergencyContactInput {
   name: string;
@@ -11,8 +12,16 @@ export interface EmergencyContactInput {
 
 export interface MedicationInput {
   name: string;
+  strength: string;
+  doseAmount: string;
+  doseUnit: string;
   dosage: string;
   timeOfDay: TimeOfDay[];
+  isPrn?: boolean;
+  frequency: MedicationFrequency;
+  frequencyDays: number[];
+  indication?: string;
+  appearance?: string;
   instruction?: string;
 }
 
@@ -58,6 +67,16 @@ export const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
   EVENING: "เย็น",
   BEDTIME: "ก่อนนอน",
 };
+
+export const MEDICATION_DOSE_UNITS = ["เม็ด", "แคปซูล", "ช้อนชา", "มล.", "ซอง", "หยด", "พัฟ"] as const;
+
+export const MEDICATION_FREQUENCY_LABELS: Record<MedicationFrequency, string> = {
+  DAILY: "ทุกวัน",
+  EVERY_OTHER_DAY: "วันเว้นวัน",
+  CUSTOM_DAYS: "เลือกวันเอง",
+};
+
+export const WEEKDAY_LABELS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"] as const;
 
 export const COMMON_DISEASES = [
   "เบาหวาน",
@@ -110,6 +129,18 @@ export function buildPineconeProfile(patient: {
   baselineTemperature?: number | null;
   baselineHeartRate?: number | null;
   baselineOxygenSat?: number | null;
+  baselineSystolicLower?: number | null;
+  baselineSystolicUpper?: number | null;
+  baselineDiastolicLower?: number | null;
+  baselineDiastolicUpper?: number | null;
+  baselineTemperatureLower?: number | null;
+  baselineTemperatureUpper?: number | null;
+  baselineHeartRateLower?: number | null;
+  baselineHeartRateUpper?: number | null;
+  baselineOxygenSatMin?: number | null;
+  baselineOxygenSatMax?: number | null;
+  baselineInsightText?: string | null;
+  baselineCalculatedAt?: Date | string | null;
   weightKg?: number | null;
   heightCm?: number | null;
   preferredHospital?: string | null;
@@ -118,9 +149,17 @@ export function buildPineconeProfile(patient: {
   emergencyContacts?: Array<{ name: string; phone: string; relation?: string | null }>;
   medications?: Array<{
     name: string;
+    strength?: string | null;
+    doseAmount?: number | null;
+    doseUnit?: string | null;
     dosage: string;
     scheduleTime: string;
     timeOfDay?: string[];
+    isPrn?: boolean;
+    frequency?: string | null;
+    frequencyDays?: number[];
+    indication?: string | null;
+    appearance?: string | null;
     instruction?: string | null;
   }>;
 }) {
@@ -137,6 +176,18 @@ export function buildPineconeProfile(patient: {
     baseline_temperature: patient.baselineTemperature,
     baseline_heart_rate: patient.baselineHeartRate,
     baseline_oxygen_sat: patient.baselineOxygenSat,
+    baseline_systolic_lower: patient.baselineSystolicLower,
+    baseline_systolic_upper: patient.baselineSystolicUpper,
+    baseline_diastolic_lower: patient.baselineDiastolicLower,
+    baseline_diastolic_upper: patient.baselineDiastolicUpper,
+    baseline_temperature_lower: patient.baselineTemperatureLower,
+    baseline_temperature_upper: patient.baselineTemperatureUpper,
+    baseline_heart_rate_lower: patient.baselineHeartRateLower,
+    baseline_heart_rate_upper: patient.baselineHeartRateUpper,
+    baseline_oxygen_sat_min: patient.baselineOxygenSatMin,
+    baseline_oxygen_sat_max: patient.baselineOxygenSatMax,
+    baseline_insight_text: patient.baselineInsightText,
+    baseline_calculated_at: patient.baselineCalculatedAt,
     weight_kg: patient.weightKg,
     height_cm: patient.heightCm,
     preferred_hospital: patient.preferredHospital,
@@ -149,9 +200,17 @@ export function buildPineconeProfile(patient: {
     })),
     medications: (patient.medications ?? []).map((m) => ({
       name: m.name,
+      strength: m.strength,
+      dose_amount: m.doseAmount,
+      dose_unit: m.doseUnit,
       dosage: m.dosage,
       schedule_time: m.scheduleTime,
       time_of_day: m.timeOfDay ?? [],
+      is_prn: m.isPrn ?? false,
+      frequency: m.frequency,
+      frequency_days: m.frequencyDays ?? [],
+      indication: m.indication,
+      appearance: m.appearance,
       instruction: m.instruction,
     })),
   };

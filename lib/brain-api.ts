@@ -38,6 +38,17 @@ export interface BrainAssessmentResult {
   state: BrainState;
 }
 
+export interface BaselineAssessmentResult {
+  thread_id: string;
+  status: "completed";
+  state: {
+    patient_id?: string;
+    calculated_thresholds?: Record<string, number | null>;
+    ai_insight_text?: string;
+    errors?: string[];
+  };
+}
+
 export function getBrainBaseUrl() {
   const baseUrl = (process.env.FASTAPI_URL || process.env.AI_API_URL)?.trim();
   return baseUrl ? baseUrl.replace(/\/+$/, "") : "http://127.0.0.1:8000";

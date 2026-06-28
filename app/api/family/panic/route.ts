@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     });
     const orgName = org?.name || "Workspace";
 
-    // Fetch 24-hour retrospective data for AI Summary (Non-Device CDS)
+    // Fetch 24-hour retrospective data for a care-coordination summary.
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const recentVitals = await prisma.vitalSign.findMany({
       where: { patientId: patient.id, measuredAt: { gte: twentyFourHoursAgo } },
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
     let aiSummary = "";
     if (recentVitals.length > 0 || recentLogs.length > 0) {
-      aiSummary += "\n\n📋 [AI Summary] สรุปข้อมูลย้อนหลัง 24 ชม.:";
+      aiSummary += "\n\n📋 [Care Summary] สรุปข้อมูลย้อนหลัง 24 ชม.:";
       if (recentVitals.length > 0) {
         const v = recentVitals[0];
         aiSummary += `\n- สัญญาณชีพล่าสุด: BP ${v.systolic}/${v.diastolic}, HR ${v.heartRate}, Temp ${v.temperature}°C, SpO2 ${v.oxygenSat}%`;
@@ -105,10 +105,10 @@ export async function POST(request: Request) {
         });
       }
     } else {
-      aiSummary += "\n\n📋 [AI Summary] ไม่มีบันทึกข้อมูลใน 24 ชั่วโมงที่ผ่านมา";
+      aiSummary += "\n\n📋 [Care Summary] ไม่มีบันทึกข้อมูลใน 24 ชั่วโมงที่ผ่านมา";
     }
 
-    const publicMessage = `[CareSync แจ้งเตือนวิกฤต] ผู้ดูแลระบบได้กดปุ่มฉุกเฉินจาก${orgName} อาจมีเหตุการณ์ร้ายแรงเกิดขึ้น! โปรดโทร ${EMERGENCY_PHONE} และรีบติดต่อผู้ดูแลหน้างานโดยด่วน${aiSummary}`;
+    const publicMessage = `[CareSync ขอความช่วยเหลือ] มีผู้ใช้กดปุ่มติดต่อด่วนจาก${orgName} โปรดตรวจสอบสถานการณ์กับผู้ดูแลหน้างาน หากเห็นว่าเป็นเหตุฉุกเฉินให้ติดต่อ ${EMERGENCY_PHONE} หรือบริการฉุกเฉินโดยตรง${aiSummary}`;
     const metadata = {
       source: "family_panic_button",
       status: "panic_triggered",
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
           organizationId: orgId,
           patientId: patient.id,
           level: "CRITICAL",
-          title: "🚨 ปุ่มฉุกเฉินถูกกด",
+          title: "ปุ่มติดต่อด่วนถูกกด",
           description: publicMessage,
           actionTaken: JSON.stringify(metadata),
         },
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
           organizationId: orgId,
           patientId: patient.id,
           type: "ALERT_TRIGGERED",
-          title: "🚨 ปุ่มฉุกเฉินถูกกด",
+          title: "ปุ่มติดต่อด่วนถูกกด",
           description: publicMessage,
           userId: session.user.id,
         },

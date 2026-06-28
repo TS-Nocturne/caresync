@@ -7,13 +7,33 @@ function getSignatureInkColor() {
   return getTheme() === "dark" ? "#ffffff" : "#0f172a";
 }
 
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 interface Medication {
   id: string;
   name: string;
+  strength?: string | null;
+  doseAmount?: number | null;
+  doseUnit?: string | null;
   dosage: string;
   scheduleTime: string;
+  isPrn?: boolean;
+  indication?: string | null;
+  appearance?: string | null;
   status: "PENDING" | "GIVEN" | "SKIPPED";
   signatureUrl?: string | null;
+}
+
+interface MedicationWindow {
+  id: string;
+  label: string;
+  start: string;
+  end: string;
 }
 
 const statusConfig = {
@@ -163,16 +183,24 @@ export default function MedicationChecklist({
   onMedsChange?: (meds: Medication[]) => void;
 }) {
   const [meds, setMeds] = useState<Medication[]>([]);
+  const [prnMeds, setPrnMeds] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [windowInfo, setWindowInfo] = useState<MedicationWindow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     if (!patientId) {
       const timeoutId = window.setTimeout(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setMeds([]);
+          setPrnMeds([]);
+          setWindowInfo(null);
+          onMedsChange?.([]);
+          setLoading(false);
+        }
       }, 0);
       return () => {
         cancelled = true;
@@ -180,15 +208,25 @@ export default function MedicationChecklist({
       };
     }
 
+    const activePatientId = patientId;
+
     async function loadMeds() {
       try {
+        setLoading(true);
         setError("");
-        const res = await fetch(`/api/medications?orgId=${orgId}&patientId=${patientId}`);
+        const currentDate = new Date();
+        const now = currentDate.toTimeString().slice(0, 5);
+        const today = formatLocalDate(currentDate);
+        const params = new URLSearchParams({ orgId, patientId: activePatientId, now, today });
+        const res = await fetch(`/api/medications?${params.toString()}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "โหลดรายการยาไม่สำเร็จ");
         const loaded = json.data ?? [];
+        const loadedPrn = json.prnData ?? [];
         if (cancelled) return;
         setMeds(loaded);
+        setPrnMeds(loadedPrn);
+        setWindowInfo(json.window ?? null);
         onMedsChange?.(loaded);
       } catch (err) {
         if (cancelled) return;
@@ -221,6 +259,7 @@ export default function MedicationChecklist({
       onMedsChange?.(next);
       return next;
     });
+    setPrnMeds((current) => current.map((m) => (m.id === id ? json.data : m)));
   };
 
   const confirmGive = async (id: string, sigData: string) => {
@@ -242,6 +281,8 @@ export default function MedicationChecklist({
 
   const givenCount = meds.filter((m) => m.status === "GIVEN").length;
   const pendingCount = meds.filter((m) => m.status === "PENDING").length;
+  const medicationDoseText = (med: Medication) =>
+    med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage;
 
   return (
     <div className="glass-card p-5 animate-fade-in border-2 border-primary/10">
@@ -252,6 +293,11 @@ export default function MedicationChecklist({
       <p className="text-xs text-muted-foreground mb-5">
         ติ๊กจ่ายยาและเซ็นชื่อก่อนกดบันทึกข้อมูลทั้งหมด — หลักฐานสำหรับการเบิกจ่ายและทางกฎหมาย
       </p>
+      {windowInfo && (
+        <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+          แสดงเฉพาะยา{windowInfo.label} ({windowInfo.start}-{windowInfo.end} น.)
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-rose-50 text-rose-600 text-sm border border-rose-100">
@@ -263,92 +309,192 @@ export default function MedicationChecklist({
         <p className="text-sm text-muted-foreground py-6 text-center">กำลังโหลดรายการยา...</p>
       ) : !patientId ? (
         <p className="text-sm text-muted-foreground py-6 text-center">ไม่พบผู้ป่วย</p>
-      ) : meds.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">ไม่มีรายการยาวันนี้</p>
+      ) : meds.length === 0 && prnMeds.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          {windowInfo
+            ? `ไม่มีรายการยา${windowInfo.label} (${windowInfo.start}-${windowInfo.end} น.)`
+            : "ไม่มีรายการยาในรอบนี้"}
+        </p>
       ) : (
         <>
-          <div className="flex items-center justify-between mb-3 text-xs font-medium">
-            <span className="text-muted-foreground">
-              ให้แล้ว {givenCount}/{meds.length}
-            </span>
-            {pendingCount > 0 && (
-              <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                รอให้ยา {pendingCount} รายการ
-              </span>
-            )}
-          </div>
+          {meds.length > 0 && (
+            <>
+              <div className="flex items-center justify-between mb-3 text-xs font-medium">
+                <span className="text-muted-foreground">
+                  ให้แล้ว {givenCount}/{meds.length}
+                </span>
+                {pendingCount > 0 && (
+                  <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                    รอให้ยา {pendingCount} รายการ
+                  </span>
+                )}
+              </div>
 
-          <div className="w-full h-2 rounded-full bg-muted mb-5 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-500"
-              style={{ width: `${meds.length ? (givenCount / meds.length) * 100 : 0}%` }}
-            />
-          </div>
+              <div className="w-full h-2 rounded-full bg-muted mb-5 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${meds.length ? (givenCount / meds.length) * 100 : 0}%` }}
+                />
+              </div>
+            </>
+          )}
 
-          <div className="space-y-3">
-            {meds.map((med) => {
-              const cfg = statusConfig[med.status];
-              return (
-                <div key={med.id}>
-                  <div className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg} transition-all`}>
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 mt-0.5 ${
-                          med.status === "GIVEN"
-                            ? "bg-emerald-100 text-emerald-600"
-                            : med.status === "SKIPPED"
-                              ? "bg-red-100 text-red-600"
-                              : "bg-amber-100 text-amber-600"
-                        }`}
-                      >
-                        {med.status === "GIVEN" ? "✓" : med.status === "SKIPPED" ? "✕" : "○"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm">{med.name}</span>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
-                            {cfg.label}
-                          </span>
+          {meds.length === 0 && (
+            <p className="mb-4 text-sm text-muted-foreground text-center">
+              ไม่มีรายการยาประจำในรอบนี้
+            </p>
+          )}
+
+          {meds.length > 0 && (
+            <div className="space-y-3">
+              {meds.map((med) => {
+                const cfg = statusConfig[med.status];
+                return (
+                  <div key={med.id}>
+                    <div className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg} transition-all`}>
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 mt-0.5 ${
+                            med.status === "GIVEN"
+                              ? "bg-emerald-100 text-emerald-600"
+                              : med.status === "SKIPPED"
+                                ? "bg-red-100 text-red-600"
+                                : "bg-amber-100 text-amber-600"
+                          }`}
+                        >
+                          {med.status === "GIVEN" ? "✓" : med.status === "SKIPPED" ? "✕" : "○"}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {med.dosage} — เวลา {med.scheduleTime} น.
-                        </p>
-                        {med.signatureUrl && med.status === "GIVEN" && (
-                          <p className="text-[10px] text-emerald-600 mt-1">✍️ มีลายเซ็นดิจิทัลแล้ว</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm">
+                              {med.name}
+                              {med.strength ? ` ${med.strength}` : ""}
+                            </span>
+                            {!med.strength && (
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                                ไม่ระบุขนาดยา
+                              </span>
+                            )}
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            ปริมาณ {medicationDoseText(med)} — เวลา {med.scheduleTime} น.
+                          </p>
+                          {med.indication && (
+                            <p className="text-[11px] text-muted-foreground mt-1">สรรพคุณ: {med.indication}</p>
+                          )}
+                          {med.appearance && (
+                            <p className="text-[11px] text-muted-foreground mt-1">ลักษณะยา: {med.appearance}</p>
+                          )}
+                          {med.signatureUrl && med.status === "GIVEN" && (
+                            <p className="text-[10px] text-emerald-600 mt-1">✍️ มีลายเซ็นดิจิทัลแล้ว</p>
+                          )}
+                        </div>
+                        {med.status === "PENDING" && (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setSigningId(med.id)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                            >
+                              ให้ยา + เซ็น
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => skipMed(med.id)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                            >
+                              ข้าม
+                            </button>
+                          </div>
                         )}
                       </div>
-                      {med.status === "PENDING" && (
-                        <div className="flex gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setSigningId(med.id)}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
-                          >
-                            ให้ยา + เซ็น
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => skipMed(med.id)}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
-                          >
-                            ข้าม
-                          </button>
+                    </div>
+                    {signingId === med.id && (
+                      <div className="mt-2 p-4 rounded-xl border-2 border-primary/30 bg-card shadow-inner">
+                        <SignatureCanvas
+                          onSave={(data) => confirmGive(med.id, data)}
+                          onCancel={() => setSigningId(null)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {prnMeds.length > 0 && (
+            <div className="mt-5 border-t border-border pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold">ยาตามอาการ (PRN)</h3>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                  ไม่บังคับจบกะ
+                </span>
+              </div>
+              <div className="space-y-3">
+                {prnMeds.map((med) => {
+                  const cfg = statusConfig[med.status];
+                  return (
+                    <div key={med.id} className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg}`}>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm">
+                              {med.name}
+                              {med.strength ? ` ${med.strength}` : ""}
+                            </span>
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                              PRN
+                            </span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.text}`}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            ปริมาณ {medicationDoseText(med)}
+                          </p>
+                          {med.indication && (
+                            <p className="text-[11px] text-muted-foreground mt-1">สรรพคุณ: {med.indication}</p>
+                          )}
+                          {med.appearance && (
+                            <p className="text-[11px] text-muted-foreground mt-1">ลักษณะยา: {med.appearance}</p>
+                          )}
+                        </div>
+                        {med.status === "PENDING" && (
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setSigningId(med.id)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                            >
+                              ให้ยา + เซ็น
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => skipMed(med.id)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                            >
+                              ข้าม
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {signingId === med.id && (
+                        <div className="mt-2 p-4 rounded-xl border-2 border-primary/30 bg-card shadow-inner">
+                          <SignatureCanvas
+                            onSave={(data) => confirmGive(med.id, data)}
+                            onCancel={() => setSigningId(null)}
+                          />
                         </div>
                       )}
                     </div>
-                  </div>
-                  {signingId === med.id && (
-                    <div className="mt-2 p-4 rounded-xl border-2 border-primary/30 bg-card shadow-inner">
-                      <SignatureCanvas
-                        onSave={(data) => confirmGive(med.id, data)}
-                        onCancel={() => setSigningId(null)}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -125,24 +125,25 @@ export async function GET(request: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    const vitalStatus = getPatientStatus(vitalInput);
+    const vitalStatus = getPatientStatus(vitalInput, patient);
     const status = toUiStatus(vitalStatus, activeAlert?.level ?? null);
 
     const caregiverName = patient.caregivers[0]?.user.name ?? null;
     let alertMsg = activeAlert?.description;
     if (
       activeAlert?.title === "🚨 ปุ่มฉุกเฉินถูกกด" ||
+      activeAlert?.title === "ปุ่มติดต่อด่วนถูกกด" ||
       activeAlert?.title === "Emergency panic button triggered" ||
       activeAlert?.description?.startsWith("[CareSync แจ้งเตือนวิกฤต]")
     ) {
-      alertMsg = "🚨 มีการส่งสัญญาณแจ้งเหตุฉุกเฉิน — กำลังรอผู้เข้าช่วยเหลือ";
+      alertMsg = "มีการกดปุ่มติดต่อด่วน — รอผู้ดูแลตรวจสอบและยืนยันสถานการณ์";
     }
 
     const statusMessage =
       status === "critical"
-        ? alertMsg ?? "พบสัญญาณชีพผิดปกติ — กำลังรอผู้เข้าช่วยเหลือ"
+        ? alertMsg ?? "พบข้อมูลที่ควรตรวจสอบด่วน — รอผู้ดูแลยืนยันสถานการณ์"
         : status === "warning"
-          ? alertMsg ?? "มีอาการที่ต้องเฝ้าระวัง — ทีมดูแลกำลังติดตาม"
+          ? alertMsg ?? "มีข้อมูลที่ควรติดตาม — ทีมดูแลกำลังตรวจสอบ"
           : caregiverName
             ? `สัญญาณชีพอยู่ในเกณฑ์ปกติ — ${caregiverName} กำลังดูแล`
             : "สัญญาณชีพอยู่ในเกณฑ์ปกติ";
@@ -185,6 +186,8 @@ export async function GET(request: Request) {
         firstName: patient.firstName,
         lastName: patient.lastName,
         roomNumber: patient.roomNumber,
+        baselineInsightText: patient.baselineInsightText,
+        baselineCalculatedAt: patient.baselineCalculatedAt?.toISOString() ?? null,
       },
       status,
       statusMessage,
@@ -198,11 +201,12 @@ export async function GET(request: Request) {
             measuredAt: latestVital.measuredAt.toISOString(),
             bloodPressureStatus: getBloodPressureStatus(
               latestVital.systolic,
-              latestVital.diastolic
+              latestVital.diastolic,
+              patient
             ),
-            temperatureStatus: getVitalMetricStatus("temperature", latestVital.temperature),
-            heartRateStatus: getVitalMetricStatus("heartRate", latestVital.heartRate),
-            oxygenStatus: getVitalMetricStatus("oxygenSat", latestVital.oxygenSat),
+            temperatureStatus: getVitalMetricStatus("temperature", latestVital.temperature, patient),
+            heartRateStatus: getVitalMetricStatus("heartRate", latestVital.heartRate, patient),
+            oxygenStatus: getVitalMetricStatus("oxygenSat", latestVital.oxygenSat, patient),
           }
         : null,
       caregiver: caregiverName ? { name: caregiverName } : null,

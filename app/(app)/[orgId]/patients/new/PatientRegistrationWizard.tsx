@@ -5,7 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import {
   COMMON_ALLERGIES,
   COMMON_DISEASES,
+  MEDICATION_DOSE_UNITS,
+  MEDICATION_FREQUENCY_LABELS,
   TIME_OF_DAY_LABELS,
+  WEEKDAY_LABELS,
   calculateAge,
   calculateBmi,
   type EmergencyContactInput,
@@ -19,8 +22,8 @@ import {
 const STEPS = [
   { id: 1, title: "ความยินยอม", icon: "📋" },
   { id: 2, title: "ข้อมูลส่วนตัว", icon: "👤" },
-  { id: 3, title: "ประวัติการแพทย์", icon: "🏥" },
-  { id: 4, title: "รายการยา", icon: "💊" },
+  { id: 3, title: "ข้อมูลสุขภาพ", icon: "📋" },
+  { id: 4, title: "กิจวัตรประจำวัน", icon: "📅" },
   { id: 5, title: "เหตุฉุกเฉิน", icon: "🚑" },
   { id: 6, title: "ตรวจสอบ", icon: "✓" },
 ];
@@ -41,8 +44,16 @@ const INSURANCE_OPTIONS: { value: InsuranceType; label: string }[] = [
 
 const emptyMed = (): MedicationInput => ({
   name: "",
+  strength: "",
+  doseAmount: "",
+  doseUnit: "เม็ด",
   dosage: "",
   timeOfDay: ["MORNING"],
+  isPrn: false,
+  frequency: "DAILY",
+  frequencyDays: [],
+  indication: "",
+  appearance: "",
   instruction: "",
 });
 
@@ -122,7 +133,7 @@ const hasDraftContent = (data: DraftFormData) =>
       data.baselineTemperature ||
       data.baselineHeartRate ||
       data.baselineOxygenSat ||
-      data.medications.some((m) => m.name || m.dosage || m.instruction) ||
+      data.medications.some((m) => m.name || m.strength || m.doseAmount || m.dosage || m.instruction) ||
       data.preferredHospital ||
       data.hospitalNumber ||
       data.insuranceType !== "SOCIAL_SECURITY" ||
@@ -244,7 +255,19 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
     setBaselineTemperature(stringValue(data.baselineTemperature));
     setBaselineHeartRate(stringValue(data.baselineHeartRate));
     setBaselineOxygenSat(stringValue(data.baselineOxygenSat));
-    setMedications(Array.isArray(data.medications) && data.medications.length ? data.medications : [emptyMed()]);
+    setMedications(
+      Array.isArray(data.medications) && data.medications.length
+        ? data.medications.map((med) => ({
+            ...emptyMed(),
+            ...med,
+            strength: med.strength ?? "",
+            doseAmount: med.doseAmount != null ? String(med.doseAmount) : "",
+            doseUnit: med.doseUnit || "เม็ด",
+            frequency: med.frequency ?? "DAILY",
+            frequencyDays: med.frequencyDays ?? [],
+          }))
+        : [emptyMed()]
+    );
     setPreferredHospital(stringValue(data.preferredHospital));
     setHospitalNumber(stringValue(data.hospitalNumber));
     setInsuranceType((data.insuranceType ?? "SOCIAL_SECURITY") as InsuranceType);
@@ -258,12 +281,38 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
 
   const validateStep = (s: number): string | null => {
     if (s === 1) {
-      if (!consentRelation) return "กรุณาระบุความสัมพันธ์กับผู้ป่วย";
+      if (!consentRelation) return "กรุณาระบุความสัมพันธ์กับผู้สูงอายุ";
       if (!consentMandatory) return "คุณต้องยินยอมเงื่อนไขพื้นฐานก่อนดำเนินการต่อ";
     }
     if (s === 2) {
       if (!firstName.trim() || !lastName.trim()) return "กรุณากรอกชื่อ-นามสกุล";
       if (!dateOfBirth) return "กรุณาเลือกวันเกิด";
+    }
+    if (s === 4) {
+      const incompleteMedication = medications.find(
+        (med) =>
+          (med.name.trim() || med.strength.trim() || String(med.doseAmount).trim() || med.dosage.trim()) &&
+          (
+            !med.name.trim() ||
+            !med.strength.trim() ||
+            !String(med.doseAmount).trim() ||
+            Number(med.doseAmount) <= 0 ||
+            !med.doseUnit.trim()
+          )
+      );
+      if (incompleteMedication) {
+        return "กรุณากรอกชื่อยา ขนาดยา จำนวน และหน่วยให้ครบทุกช่อง";
+      }
+      const customWithoutDays = medications.find(
+        (med) =>
+          !med.isPrn &&
+          med.frequency === "CUSTOM_DAYS" &&
+          med.name.trim() &&
+          med.frequencyDays.length === 0
+      );
+      if (customWithoutDays) {
+        return "กรุณาเลือกวันที่ต้องให้ยาอย่างน้อย 1 วัน";
+      }
     }
     if (s === 5) {
       const primary = emergencyContacts.filter((c) => c.name.trim() && c.phone.trim());
@@ -298,7 +347,9 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
     hospitalNumber: hospitalNumber.trim() || undefined,
     insuranceType,
     emergencyContacts: emergencyContacts.filter((c) => c.name.trim() && c.phone.trim()),
-    medications: medications.filter((m) => m.name.trim() && m.dosage.trim()),
+    medications: medications
+      .filter((m) => m.name.trim() && m.strength.trim() && String(m.doseAmount).trim() && m.doseUnit.trim())
+      .map((m) => ({ ...m, dosage: `${m.doseAmount} ${m.doseUnit}` })),
   }), [
     orgId, firstName, lastName, nickname, dateOfBirth, gender, bloodType,
     weightKg, heightCm, roomNumber, underlyingDiseases, allergies, mobilityStatus,
@@ -610,8 +661,8 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
               <h3 className="font-medium text-foreground">ส่วนที่ 1: การประกาศสิทธิ์</h3>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-                  <input type="radio" name="relation" value="ผู้ป่วยลงทะเบียนด้วยตนเอง" checked={consentRelation === "ผู้ป่วยลงทะเบียนด้วยตนเอง"} onChange={(e) => setConsentRelation(e.target.value)} className="w-4 h-4 text-primary" />
-                  <span className="text-sm">ผู้ป่วยลงทะเบียนด้วยตนเอง</span>
+                  <input type="radio" name="relation" value="ผู้สูงอายุลงทะเบียนด้วยตนเอง" checked={consentRelation === "ผู้สูงอายุลงทะเบียนด้วยตนเอง"} onChange={(e) => setConsentRelation(e.target.value)} className="w-4 h-4 text-primary" />
+                  <span className="text-sm">ผู้สูงอายุลงทะเบียนด้วยตนเอง</span>
                 </label>
                 <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
                   <input type="radio" name="relation" value="บุตร/ธิดา หรือ ญาติ" checked={consentRelation === "บุตร/ธิดา หรือ ญาติ"} onChange={(e) => setConsentRelation(e.target.value)} className="w-4 h-4 text-primary" />
@@ -629,7 +680,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
               <label className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5 cursor-pointer">
                 <input type="checkbox" checked={consentMandatory} onChange={(e) => setConsentMandatory(e.target.checked)} className="w-5 h-5 mt-0.5 text-primary rounded" />
                 <span className="text-sm text-foreground/90 leading-relaxed">
-                  ข้าพเจ้ายินยอมให้ประมวลผลข้อมูลสุขภาพและแชร์ข้อมูลนี้กับสมาชิกในครอบครัวและพยาบาลที่ข้าพเจ้าเชิญเข้าสู่ระบบ ตามกฎหมาย PDPA <strong className="text-primary">(บังคับ)</strong>
+                  ข้าพเจ้ายินยอมให้ประมวลผลข้อมูลสุขภาพและแชร์ข้อมูลนี้กับสมาชิกในครอบครัวและผู้ดูแลที่ข้าพเจ้าเชิญเข้าสู่ระบบ ตามกฎหมาย PDPA <strong className="text-primary">(บังคับ)</strong>
                 </span>
               </label>
             </div>
@@ -703,7 +754,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
 
         {step === 3 && (
           <>
-            <h2 className="font-semibold text-lg">🏥 ประวัติทางการแพทย์ (RAG Context)</h2>
+            <h2 className="font-semibold text-lg">📋 ข้อมูลสุขภาพพื้นฐาน (RAG Context)</h2>
 
             <div>
               <label className="text-sm font-medium mb-2 block">โรคประจำตัว</label>
@@ -848,11 +899,55 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                     next[idx] = { ...med, name: e.target.value };
                     setMedications(next);
                   }} />
-                  <input className={inputClass} placeholder="ปริมาณ เช่น 1 เม็ด (5mg)" value={med.dosage} onChange={(e) => {
+                  <input className={inputClass} placeholder="ขนาดยา / Strength เช่น 5 mg, 10 mg, 500 mg" value={med.strength ?? ""} onChange={(e) => {
                     const next = [...medications];
-                    next[idx] = { ...med, dosage: e.target.value };
+                    next[idx] = { ...med, strength: e.target.value };
                     setMedications(next);
                   }} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.25"
+                      className={inputClass}
+                      placeholder="จำนวน เช่น 1, 0.5, 2"
+                      value={med.doseAmount ?? ""}
+                      onChange={(e) => {
+                        const next = [...medications];
+                        next[idx] = { ...med, doseAmount: e.target.value, dosage: `${e.target.value} ${med.doseUnit}`.trim() };
+                        setMedications(next);
+                      }}
+                    />
+                    <select
+                      className={inputClass}
+                      value={med.doseUnit || "เม็ด"}
+                      onChange={(e) => {
+                        const next = [...medications];
+                        next[idx] = { ...med, doseUnit: e.target.value, dosage: `${med.doseAmount} ${e.target.value}`.trim() };
+                        setMedications(next);
+                      }}
+                    >
+                      {MEDICATION_DOSE_UNITS.map((unit) => (
+                        <option key={unit} value={unit}>{unit}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={med.isPrn ?? false}
+                      onChange={(e) => {
+                        const next = [...medications];
+                        next[idx] = {
+                          ...med,
+                          isPrn: e.target.checked,
+                          timeOfDay: e.target.checked ? [] : (med.timeOfDay.length ? med.timeOfDay : ["MORNING"]),
+                        };
+                        setMedications(next);
+                      }}
+                    />
+                    <span>💊 ทานเฉพาะเมื่อมีอาการ (PRN)</span>
+                  </label>
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">ช่วงเวลา</label>
                     <div className="flex flex-wrap gap-2">
@@ -860,6 +955,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                         <button
                           key={slot}
                           type="button"
+                          disabled={med.isPrn}
                           onClick={() => {
                             const next = [...medications];
                             const times = med.timeOfDay.includes(slot)
@@ -868,7 +964,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                             next[idx] = { ...med, timeOfDay: times.length ? times : ["MORNING"] };
                             setMedications(next);
                           }}
-                          className={`px-3 py-1 rounded-lg text-xs font-medium border ${
+                          className={`px-3 py-1 rounded-lg text-xs font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${
                             med.timeOfDay.includes(slot)
                               ? "bg-primary text-primary-foreground border-primary"
                               : "border-border"
@@ -879,11 +975,81 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                       ))}
                     </div>
                   </div>
+                  {!med.isPrn && (
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground block">ความถี่</label>
+                      <select
+                        className={inputClass}
+                        value={med.frequency ?? "DAILY"}
+                        onChange={(e) => {
+                          const next = [...medications];
+                          next[idx] = { ...med, frequency: e.target.value as MedicationInput["frequency"], frequencyDays: [] };
+                          setMedications(next);
+                        }}
+                      >
+                        {Object.entries(MEDICATION_FREQUENCY_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                      {med.frequency === "CUSTOM_DAYS" && (
+                        <div className="flex flex-wrap gap-2">
+                          {WEEKDAY_LABELS.map((label, day) => (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => {
+                                const next = [...medications];
+                                const days = med.frequencyDays.includes(day)
+                                  ? med.frequencyDays.filter((d) => d !== day)
+                                  : [...med.frequencyDays, day].sort();
+                                next[idx] = { ...med, frequencyDays: days };
+                                setMedications(next);
+                              }}
+                              className={`px-3 py-1 rounded-lg text-xs font-medium border ${
+                                med.frequencyDays.includes(day)
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "border-border"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <input className={inputClass} placeholder="หมายเหตุ เช่น หลังอาหารทันที" value={med.instruction ?? ""} onChange={(e) => {
                     const next = [...medications];
                     next[idx] = { ...med, instruction: e.target.value };
                     setMedications(next);
                   }} />
+                  <details className="rounded-lg border border-dashed border-border px-3 py-2">
+                    <summary className="cursor-pointer select-none text-sm font-medium text-primary list-none">
+                      + เพิ่มรายละเอียดเสริม (ไม่บังคับ)
+                    </summary>
+                    <div className="mt-3 space-y-3">
+                      <input
+                        className={inputClass}
+                        placeholder="สรรพคุณ/ข้อบ่งใช้ เช่น ลดความดัน"
+                        value={med.indication ?? ""}
+                        onChange={(e) => {
+                          const next = [...medications];
+                          next[idx] = { ...med, indication: e.target.value };
+                          setMedications(next);
+                        }}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="ลักษณะยา เช่น เม็ดกลมสีเหลือง"
+                        value={med.appearance ?? ""}
+                        onChange={(e) => {
+                          const next = [...medications];
+                          next[idx] = { ...med, appearance: e.target.value };
+                          setMedications(next);
+                        }}
+                      />
+                    </div>
+                  </details>
                 </div>
               ))}
             </div>

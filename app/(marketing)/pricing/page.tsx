@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 
 export default function PricingPage() {
   const [interval, setInterval] = useState<"month" | "semi_annual" | "year">("year");
@@ -104,9 +105,12 @@ export default function PricingPage() {
               </li>
               <li className="flex items-center gap-3 text-slate-300">
                 <svg className="w-5 h-5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                ระบบ AI Health Data Monitor สำหรับข้อมูลเฝ้าระวังเบื้องต้น
+                ระบบ Care Coordination Monitor สำหรับข้อมูลที่ผู้ดูแลต้องตรวจสอบ
               </li>
             </ul>
+            <div className="mb-6">
+              <MedicalDisclaimer compact tone="onDark" />
+            </div>
             <Link href="/signup" className="w-full py-4 px-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40">
               เริ่มทดลองใช้ฟรี 14 วัน
             </Link>

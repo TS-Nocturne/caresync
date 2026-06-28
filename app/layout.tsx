@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "Generative UI",
     "Smart Care",
     "Vital Signs",
-    "AI Healthcare",
+    "Care Coordination",
   ],
 };
 

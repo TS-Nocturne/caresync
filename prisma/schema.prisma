@@ -253,6 +253,18 @@ model Patient {
   baselineTemperature Float?
   baselineHeartRate   Float?
   baselineOxygenSat   Float?
+  baselineSystolicLower    Float?
+  baselineSystolicUpper    Float?
+  baselineDiastolicLower   Float?
+  baselineDiastolicUpper   Float?
+  baselineTemperatureLower Float?
+  baselineTemperatureUpper Float?
+  baselineHeartRateLower   Float?
+  baselineHeartRateUpper   Float?
+  baselineOxygenSatMin     Float?
+  baselineOxygenSatMax     Float?
+  baselineInsightText      String?
+  baselineCalculatedAt     DateTime?
 
   preferredHospital String?
   hospitalNumber    String?
@@ -408,13 +420,22 @@ model Medication {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   patientId      String
   name           String
+  strength       String?
+  doseAmount     Float?
+  doseUnit       String?
   dosage         String
   scheduleTime   String
   timeOfDay      String[]     @default([])
+  isPrn          Boolean      @default(false)
+  frequency      String       @default("DAILY")
+  frequencyDays  Int[]        @default([])
+  indication     String?
+  appearance     String?
   instruction    String?
   status         MedStatus    @default(PENDING)
   signatureUrl   String?
   givenAt        DateTime?
+  createdAt      DateTime     @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 }

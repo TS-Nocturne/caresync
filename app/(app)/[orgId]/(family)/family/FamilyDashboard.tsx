@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 import CurrentStatus from "./CurrentStatus";
 import SharedCalendar from "./SharedCalendar";
 import ActivityLog from "./ActivityLog";
@@ -13,6 +14,8 @@ export interface FamilyOverviewData {
     firstName: string;
     lastName: string;
     roomNumber: string | null;
+    baselineInsightText?: string | null;
+    baselineCalculatedAt?: string | null;
   } | null;
   status: "ok" | "warning" | "critical";
   statusMessage: string;
@@ -103,13 +106,14 @@ export default function FamilyDashboard() {
     : "ผู้ป่วย";
 
   const aiInsight =
-    overview?.status === "critical"
+    overview?.patient?.baselineInsightText ??
+    (overview?.status === "critical"
       ? overview.statusMessage
       : overview?.status === "warning"
         ? overview.statusMessage
         : overview?.vitals
           ? `สรุปล่าสุด: ${patientName} อยู่ในสถานะปกติจากข้อมูลสัญญาณชีพล่าสุด ยาที่ให้แล้ว ${overview.medications.given}/${overview.medications.total} รายการ`
-          : `สรุปล่าสุด: ยังไม่มีสัญญาณชีพล่าสุดของ ${patientName} ในระบบ`;
+          : `สรุปล่าสุด: ยังไม่มีสัญญาณชีพล่าสุดของ ${patientName} ในระบบ`);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -147,21 +151,24 @@ export default function FamilyDashboard() {
         </div>
       ) : (
         <>
-          {/* AI Insight Banner (Top) */}
+          {/* Care note banner */}
           <section className="rounded-2xl border border-border bg-card p-5 shadow-sm animate-fade-in">
             <div className="mb-2 flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                 AI
               </span>
               <div>
-                <h2 className="text-sm font-bold text-foreground">AI Insight</h2>
-                <p className="text-xs text-muted-foreground">สรุปสถานะที่ทุกคนในบ้านเห็นตรงกัน</p>
+                <h2 className="text-sm font-bold text-foreground">Care Coordination Note</h2>
+                <p className="text-xs text-muted-foreground">ข้อมูลที่บันทึกไว้เพื่อให้ผู้ดูแลตรวจสอบร่วมกัน</p>
               </div>
             </div>
             <p className="text-base leading-7 text-foreground">{aiInsight}</p>
+            <div className="mt-4">
+              <MedicalDisclaimer compact />
+            </div>
           </section>
 
-          {/* Emergency Link Card — links to dedicated /emergency page */}
+          {/* Urgent contact link card */}
           <Link
             href={`/${orgId}/emergency`}
             className="block rounded-2xl border-2 border-rose-300 bg-rose-50 p-5 shadow-sm dark:border-rose-900/60 dark:bg-rose-950/20 animate-fade-in transition-all hover:shadow-lg hover:border-rose-400 dark:hover:border-rose-800 group"
@@ -173,10 +180,10 @@ export default function FamilyDashboard() {
               </div>
               <div className="flex-1">
                 <h3 className="text-base font-bold text-rose-900 dark:text-rose-200">
-                  แจ้งเหตุฉุกเฉิน
+                  ติดต่อด่วน
                 </h3>
                 <p className="text-sm text-rose-700/70 dark:text-rose-300/70 mt-0.5">
-                  ไสด์ปุ่มเพื่อส่งสัญญาณถึงครอบครัวทันที + โทร 1669
+                  ส่งข้อความขอความช่วยเหลือให้ครอบครัว และแสดงเบอร์ 1669 ให้ผู้ใช้เลือกโทรเอง
                 </p>
               </div>
               <svg className="w-5 h-5 text-rose-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

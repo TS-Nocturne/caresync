@@ -27,8 +27,8 @@ export default function CurrentStatus({
 
   const statusLabel = {
     ok: "สถานะปกติ",
-    warning: "มีอาการเฝ้าระวัง",
-    critical: "ฉุกเฉิน — กำลังรอผู้เข้าช่วยเหลือ",
+    warning: "มีข้อมูลที่ควรติดตาม",
+    critical: "ต้องตรวจสอบด่วน — รอผู้ดูแลยืนยันสถานการณ์",
   };
   const statusBg = {
     ok: "from-emerald-500 to-teal-500",
@@ -100,7 +100,7 @@ export default function CurrentStatus({
                     onClick={() => setIsModalOpen(true)}
                     className="inline-flex items-center justify-center rounded-full bg-white text-rose-600 px-6 py-2.5 text-sm font-bold shadow-sm hover:bg-rose-50 transition-colors"
                   >
-                    ยืนยันว่าผู้ป่วยปลอดภัย / ปิดเคสฉุกเฉิน
+                    บันทึกผลการตรวจสอบ / ปิดรายการแจ้งเตือน
                   </button>
                 ) : (
                   <div className="bg-black/10 rounded-lg p-3 text-sm text-white/90">
@@ -133,8 +133,8 @@ export default function CurrentStatus({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <h3 className="text-xl font-bold text-foreground mb-1">ปิดเคสฉุกเฉิน</h3>
-            <p className="text-sm text-muted-foreground mb-6">กรุณาระบุผลลัพธ์ของเหตุการณ์เพื่อบันทึกลงระบบ</p>
+            <h3 className="text-xl font-bold text-foreground mb-1">ปิดรายการแจ้งเตือน</h3>
+            <p className="text-sm text-muted-foreground mb-6">กรุณาระบุผลการตรวจสอบของผู้ดูแลเพื่อบันทึกลงระบบ</p>
             
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 text-sm">
@@ -144,9 +144,9 @@ export default function CurrentStatus({
 
             <div className="space-y-3 mb-6">
               {[
-                "ได้รับการปฐมพยาบาลจนปลอดภัยแล้ว",
-                "นำส่งโรงพยาบาลเรียบร้อยแล้ว",
-                "เป็นการกดทดสอบ / กดผิดพลาด (False Alarm)",
+                "ผู้ดูแลตรวจสอบแล้ว ไม่มีเหตุที่ต้องดำเนินการต่อ",
+                "ส่งต่อให้บุคลากรทางการแพทย์หรือบริการฉุกเฉินเป็นผู้ประเมินแล้ว",
+                "เป็นการกดทดสอบ / กดผิดพลาด",
               ].map((reason) => (
                 <label 
                   key={reason} 
@@ -193,7 +193,7 @@ export default function CurrentStatus({
                     กำลังบันทึก...
                   </>
                 ) : (
-                  "ยืนยันปิดเคส"
+                  "บันทึกผลการตรวจสอบ"
                 )}
               </button>
             </div>

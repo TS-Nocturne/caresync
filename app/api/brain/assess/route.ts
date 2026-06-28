@@ -96,8 +96,35 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         patient_id: patientId,
         vitals: body.vitals ?? {},
+        patient_baseline: {
+          baseline_systolic: patient.baselineSystolic,
+          baseline_diastolic: patient.baselineDiastolic,
+          baseline_temperature: patient.baselineTemperature,
+          baseline_heart_rate: patient.baselineHeartRate,
+          baseline_oxygen_sat: patient.baselineOxygenSat,
+          baseline_systolic_lower: patient.baselineSystolicLower,
+          baseline_systolic_upper: patient.baselineSystolicUpper,
+          baseline_diastolic_lower: patient.baselineDiastolicLower,
+          baseline_diastolic_upper: patient.baselineDiastolicUpper,
+          baseline_temperature_lower: patient.baselineTemperatureLower,
+          baseline_temperature_upper: patient.baselineTemperatureUpper,
+          baseline_heart_rate_lower: patient.baselineHeartRateLower,
+          baseline_heart_rate_upper: patient.baselineHeartRateUpper,
+          baseline_oxygen_sat_min: patient.baselineOxygenSatMin,
+          baseline_oxygen_sat_max: patient.baselineOxygenSatMax,
+          baseline_insight_text: patient.baselineInsightText,
+          baseline_calculated_at: patient.baselineCalculatedAt?.toISOString() ?? null,
+        },
         symptoms,
-        current_medications: patient.medications.map((med) => `${med.name} ${med.dosage}`),
+        current_medications: patient.medications.map((med) =>
+          [
+            med.name,
+            med.strength,
+            med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage,
+            med.isPrn ? "PRN" : med.frequency,
+            med.indication ? `for ${med.indication}` : null,
+          ].filter(Boolean).join(" ")
+        ),
         validation_confirmed: body.validation_confirmed ?? false,
       }),
     });
@@ -144,8 +171,10 @@ export async function POST(request: Request) {
           organizationId: orgId,
           patientId,
           level: toAlertLevel(riskLevel),
-          title: `AI risk assessment: ${riskLevel}`,
-          description: assessment.state.ai_analysis ?? "AI risk assessment requires review.",
+          title: `ข้อมูลจาก AI ที่ควรให้ผู้ดูแลตรวจสอบ: ${riskLevel}`,
+          description:
+            assessment.state.ai_analysis ??
+            "ข้อมูลนี้เป็นข้อสังเกตเพื่อการประสานงาน ไม่ใช่คำวินิจฉัยหรือคำสั่งรักษา",
           actionTaken: JSON.stringify({
             brainThreadId: assessment.thread_id,
             status: assessment.status,

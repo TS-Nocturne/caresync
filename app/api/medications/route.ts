@@ -4,6 +4,11 @@ import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { requirePermission } from "@/lib/caregiver-access";
 import { PERMISSIONS } from "@/lib/permissions";
 import { apiError, readJsonBody } from "@/lib/api-security";
+import {
+  getMedicationWindowForTime,
+  isMedicationDueOnDate,
+  isMedicationInWindow,
+} from "@/lib/medication-schedule";
 import { requireWritableSubscription } from "@/lib/subscriptions";
 
 export async function GET(request: Request) {
@@ -12,6 +17,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const orgId = searchParams.get("orgId");
     const patientId = searchParams.get("patientId");
+    const now = searchParams.get("now") ?? undefined;
+    const today = searchParams.get("today") ?? undefined;
 
     if (!orgId || !patientId) {
       return NextResponse.json({ error: "orgId and patientId are required" }, { status: 400 });
@@ -20,12 +27,29 @@ export async function GET(request: Request) {
     await requireOrgMembership(orgId, session.user.id);
     await requirePermission(orgId, session.user.id, patientId, PERMISSIONS.MEDICATIONS_READ);
 
+    const window = getMedicationWindowForTime(now);
     const medications = await prisma.medication.findMany({
       where: { organizationId: orgId, patientId },
       orderBy: [{ scheduleTime: "asc" }, { name: "asc" }],
     });
+    const regularMedications = medications.filter(
+      (medication) =>
+        !medication.isPrn &&
+        isMedicationDueOnDate(medication, today) &&
+        isMedicationInWindow(medication.scheduleTime, window)
+    );
+    const prnMedications = medications.filter((medication) => medication.isPrn);
 
-    return NextResponse.json({ data: medications });
+    return NextResponse.json({
+      data: regularMedications,
+      prnData: prnMedications,
+      window: {
+        id: window.id,
+        label: window.label,
+        start: window.start,
+        end: window.end,
+      },
+    });
   } catch (error) {
     return apiError(error, "Failed to fetch medications");
   }
@@ -79,7 +103,17 @@ export async function PATCH(request: Request) {
         patientId: medication.patientId,
         type: status === "GIVEN" ? "MEDICATION_GIVEN" : "MEDICATION_SKIPPED",
         title: status === "GIVEN" ? "ให้ยาแล้ว (มีลายเซ็น)" : "ข้ามการให้ยา",
-        description: `${medication.name} ${medication.dosage} — ${medication.patient.firstName} ${medication.patient.lastName}`,
+        description: [
+          medication.name,
+          medication.strength,
+          medication.doseAmount != null && medication.doseUnit
+            ? `${medication.doseAmount} ${medication.doseUnit}`
+            : medication.dosage,
+          medication.isPrn ? "(PRN)" : null,
+          "—",
+          medication.patient.firstName,
+          medication.patient.lastName,
+        ].filter(Boolean).join(" "),
         userId: session.user.id,
       },
     });

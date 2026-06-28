@@ -13,21 +13,20 @@ type DecisionBody = {
 };
 
 const ALLOWED_DECISIONS = new Set([
-  "prepare_hospital_transfer",
-  "administer_prn",
-  "call_doctor",
+  "request_professional_review",
+  "contact_emergency_services_user_initiated",
   "monitor_at_home",
   "notify_nurse",
 ]);
 
 function decisionDescription(decision: string) {
-  if (decision === "prepare_hospital_transfer") {
-    return "Family requested hospital transfer preparation.";
+  if (decision === "request_professional_review") {
+    return "Family requested review by a qualified professional.";
   }
-  if (decision === "administer_prn") {
-    return "Family requested PRN medication review.";
+  if (decision === "contact_emergency_services_user_initiated") {
+    return "Family recorded that they chose to contact emergency services.";
   }
-  return `Family decision recorded: ${decision.replace(/_/g, " ")}`;
+  return `Care coordination note recorded: ${decision.replace(/_/g, " ")}`;
 }
 
 export async function POST(request: Request, context: { params: Promise<{ threadId: string }> }) {

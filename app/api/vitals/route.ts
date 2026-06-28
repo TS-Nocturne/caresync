@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const riskAlerts = assessVitalRisk(vitalData);
+    const riskAlerts = assessVitalRisk(vitalData, patient);
     for (const alert of riskAlerts) {
       await prisma.alert.create({
         data: {

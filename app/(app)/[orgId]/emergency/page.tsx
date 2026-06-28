@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import EmergencyPage from "./EmergencyPage";
 
 export const metadata: Metadata = {
-  title: "แจ้งเหตุฉุกเฉิน — CareSync",
-  description: "หน้าส่งสัญญาณฉุกเฉินถึงครอบครัวทันที พร้อมเบอร์โทรฉุกเฉิน 1669",
+  title: "ติดต่อด่วน — CareSync",
+  description: "หน้าส่งข้อความขอความช่วยเหลือถึงครอบครัว พร้อมแสดงเบอร์ติดต่อฉุกเฉินให้ผู้ใช้เลือกโทรเอง",
 };
 
 export default function Page() {

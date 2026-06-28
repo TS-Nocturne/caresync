@@ -22,6 +22,28 @@ async function requireOwnerOrAdmin(orgId: string, userId: string) {
   return member;
 }
 
+function hasIncompleteMedication(medications: PatientRegistrationInput["medications"]) {
+  return (medications ?? []).some((med) => {
+    const hasAny = Boolean(med.name?.trim() || med.strength?.trim() || String(med.doseAmount ?? "").trim());
+    const doseAmount = Number(med.doseAmount);
+    const missingRequired = hasAny && !(
+      med.name?.trim() &&
+      med.strength?.trim() &&
+      String(med.doseAmount ?? "").trim() &&
+      Number.isFinite(doseAmount) &&
+      doseAmount > 0 &&
+      med.doseUnit?.trim()
+    );
+    const missingCustomDays =
+      hasAny && !med.isPrn && med.frequency === "CUSTOM_DAYS" && (med.frequencyDays ?? []).length === 0;
+    return missingRequired || missingCustomDays;
+  });
+}
+
+function medicationDosage(med: PatientRegistrationInput["medications"][number]) {
+  return `${med.doseAmount} ${med.doseUnit}`.trim();
+}
+
 export async function GET(request: Request) {
   try {
     const session = await requireSession();
@@ -63,7 +85,8 @@ export async function GET(request: Request) {
               heartRate: latestVital.heartRate,
               oxygenSat: latestVital.oxygenSat,
             }
-          : null
+          : null,
+        patient
       );
 
       return {
@@ -80,6 +103,18 @@ export async function GET(request: Request) {
         baselineTemperature: patient.baselineTemperature,
         baselineHeartRate: patient.baselineHeartRate,
         baselineOxygenSat: patient.baselineOxygenSat,
+        baselineSystolicLower: patient.baselineSystolicLower,
+        baselineSystolicUpper: patient.baselineSystolicUpper,
+        baselineDiastolicLower: patient.baselineDiastolicLower,
+        baselineDiastolicUpper: patient.baselineDiastolicUpper,
+        baselineTemperatureLower: patient.baselineTemperatureLower,
+        baselineTemperatureUpper: patient.baselineTemperatureUpper,
+        baselineHeartRateLower: patient.baselineHeartRateLower,
+        baselineHeartRateUpper: patient.baselineHeartRateUpper,
+        baselineOxygenSatMin: patient.baselineOxygenSatMin,
+        baselineOxygenSatMax: patient.baselineOxygenSatMax,
+        baselineInsightText: patient.baselineInsightText,
+        baselineCalculatedAt: patient.baselineCalculatedAt,
         status,
         lastUpdate: latestVital?.measuredAt ?? patient.updatedAt,
         caregiverName: patient.caregivers[0]?.user.name ?? null,
@@ -105,6 +140,13 @@ export async function POST(request: Request) {
 
     if (!body.consentMandatory || !body.consentRelation) {
       return NextResponse.json({ error: "Consent and relation are required" }, { status: 400 });
+    }
+
+    if (hasIncompleteMedication(body.medications)) {
+      return NextResponse.json(
+        { error: "Medication name, strength, and dose are required for every medication" },
+        { status: 400 }
+      );
     }
 
     await requireOwnerOrAdmin(body.orgId, session.user.id);
@@ -153,35 +195,61 @@ export async function POST(request: Request) {
         organizationId: string;
         patientId: string;
         name: string;
+        strength: string | null;
+        doseAmount: number | null;
+        doseUnit: string | null;
         dosage: string;
         scheduleTime: string;
         timeOfDay: string[];
+        isPrn: boolean;
+        frequency: string;
+        frequencyDays: number[];
+        indication: string | null;
+        appearance: string | null;
         instruction: string | null;
       }> = [];
 
       for (const med of body.medications ?? []) {
-        const times = med.timeOfDay?.length ? med.timeOfDay : (["MORNING"] as TimeOfDay[]);
-        for (const slot of times) {
+        const doseAmount = Number(med.doseAmount);
+        if (!med.name.trim() || !med.strength.trim() || !Number.isFinite(doseAmount) || doseAmount <= 0 || !med.doseUnit.trim()) {
+          continue;
+        }
+        const times = med.isPrn
+          ? []
+          : med.timeOfDay?.length ? med.timeOfDay : (["MORNING"] as TimeOfDay[]);
+        const rowsForMed = med.isPrn ? ([null] as const) : times;
+        for (const slot of rowsForMed) {
           medRows.push({
             organizationId: body.orgId,
             patientId: created.id,
             name: sanitizeText(med.name, 200),
-            dosage: sanitizeText(med.dosage, 200),
-            scheduleTime: TIME_OF_DAY_SCHEDULE[slot],
-            timeOfDay: [slot],
+            strength: sanitizeText(med.strength, 80) || null,
+            doseAmount,
+            doseUnit: sanitizeText(med.doseUnit, 40) || null,
+            dosage: medicationDosage(med),
+            scheduleTime: slot ? TIME_OF_DAY_SCHEDULE[slot] : "PRN",
+            timeOfDay: slot ? [slot] : [],
+            isPrn: med.isPrn ?? false,
+            frequency: med.frequency ?? "DAILY",
+            frequencyDays: med.frequency === "CUSTOM_DAYS" ? (med.frequencyDays ?? []) : [],
+            indication: sanitizeText(med.indication, 200) || null,
+            appearance: sanitizeText(med.appearance, 200) || null,
             instruction: sanitizeText(med.instruction, 500) || null,
           });
         }
       }
 
-      if (medRows.length) {
-        await tx.medication.createMany({ data: medRows });
+      const completeMedRows = medRows.filter((row) => row.name && row.strength && row.doseAmount && row.doseAmount > 0 && row.doseUnit);
+      if (completeMedRows.length) {
+        await tx.medication.createMany({ data: completeMedRows });
       }
 
       const hasBaseline =
         body.baselineSystolic != null ||
         body.baselineDiastolic != null ||
-        body.baselineTemperature != null;
+        body.baselineTemperature != null ||
+        body.baselineHeartRate != null ||
+        body.baselineOxygenSat != null;
 
       if (hasBaseline) {
         await tx.vitalSign.create({

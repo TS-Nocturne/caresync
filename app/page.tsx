@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Metadata } from "next";
 import MarketingNav from "@/app/components/marketing/MarketingNav";
+import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 
 export const metadata: Metadata = {
   title: "CareSync — ระบบดูแลผู้สูงอายุอัจฉริยะแบบครบวงจร",
@@ -17,13 +18,13 @@ export default function MarketingPage() {
       <main className="pt-28 sm:pt-32 pb-16 sm:pb-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium mb-8 animate-fade-in">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          Powered by LangGraph & health data monitoring
+          Powered by LangGraph & care coordination logs
         </div>
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight text-foreground mb-6 max-w-4xl mx-auto leading-tight animate-fade-in" style={{ animationDelay: "100ms" }}>
-          The operating system for <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500">modern eldercare</span>
+          Shared care workspace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500">modern eldercare</span>
         </h1>
         <p className="text-base sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "200ms" }}>
-          ยกระดับการดูแลผู้สูงอายุด้วยแพลตฟอร์มเดียวที่เชื่อมต่อผู้ดูแล ครอบครัว และ AI เข้าด้วยกันแบบ Real-time
+          รวมบันทึกการดูแล สัญญาณชีพ งานประจำวัน และการสื่อสารของครอบครัวไว้ในพื้นที่เดียว โดยให้ผู้ดูแลเป็นผู้ตรวจสอบและตัดสินใจเสมอ
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "300ms" }}>
           <Link href="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary text-white text-lg font-semibold rounded-full hover:bg-primary-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
@@ -53,9 +54,12 @@ export default function MarketingPage() {
             </div>
             <div className="p-6 rounded-2xl bg-muted border border-border">
               <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-2xl mb-4">🚨</div>
-              <h3 className="text-xl font-bold text-foreground mb-2">AI Health Data Monitor</h3>
-              <p className="text-muted-foreground">แสดงข้อมูลสุขภาพและสัญญาณเฝ้าระวังเบื้องต้น พร้อมช่องทางส่งต่อให้บุคลากรทางการแพทย์ประเมิน</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">Care Coordination Monitor</h3>
+              <p className="text-muted-foreground">แสดงข้อมูลที่บันทึกไว้และรายการที่ควรให้ผู้ดูแลตรวจสอบ โดยไม่วินิจฉัยหรือสั่งการรักษา</p>
             </div>
+          </div>
+          <div className="mx-auto mt-8 max-w-3xl">
+            <MedicalDisclaimer />
           </div>
         </div>
       </section>

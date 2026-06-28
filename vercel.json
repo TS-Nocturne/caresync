@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/your-cron-route",
+      "path": "/api/cron/patient-baselines",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/vital-reminders",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

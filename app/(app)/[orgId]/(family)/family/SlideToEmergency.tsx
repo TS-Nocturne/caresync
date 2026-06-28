@@ -94,7 +94,7 @@ export default function SlideToEmergency({
   return (
     <div className="slide-emergency-container">
       <p className="slide-emergency-label">
-        🚨 แจ้งเหตุฉุกเฉิน
+        ☎️ ส่งข้อความขอความช่วยเหลือ
       </p>
       <div
         ref={trackRef}
@@ -115,14 +115,14 @@ export default function SlideToEmergency({
           style={{ opacity: textOpacity }}
         >
           <span className="slide-emergency-arrows">›››</span>
-          <span>ไสด์เพื่อแจ้งเหตุฉุกเฉิน</span>
+          <span>ไสด์เพื่อส่งข้อความถึงครอบครัว</span>
           <span className="slide-emergency-arrows">›››</span>
         </div>
 
         {/* Activated text */}
         {activated && (
           <div className="slide-emergency-text slide-emergency-text--activated">
-            <span>กำลังส่งสัญญาณฉุกเฉิน...</span>
+            <span>กำลังส่งข้อความขอความช่วยเหลือ...</span>
           </div>
         )}
 
@@ -138,13 +138,13 @@ export default function SlideToEmergency({
           {loading ? (
             <div className="slide-emergency-spinner" />
           ) : (
-            <span className="slide-emergency-icon">🚨</span>
+            <span className="slide-emergency-icon">☎️</span>
           )}
         </div>
       </div>
 
       <p className="slide-emergency-hint">
-        ไสด์ปุ่มจากซ้ายไปขวาเพื่อส่งสัญญาณฉุกเฉินถึงครอบครัวทุกคนทันที
+        ไสด์ปุ่มจากซ้ายไปขวาเพื่อส่งข้อความขอความช่วยเหลือถึงครอบครัวทุกคน
       </p>
     </div>
   );

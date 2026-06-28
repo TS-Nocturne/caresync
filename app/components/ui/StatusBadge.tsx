@@ -24,7 +24,7 @@ const statusConfig = {
     bg: "bg-status-critical-bg",
     text: "text-status-critical",
     dot: "bg-status-critical",
-    label: "ฉุกเฉิน",
+    label: "ตรวจสอบด่วน",
     shadow: "shadow-[0_0_8px_rgba(239,68,68,0.3)]",
   },
   disabled: {

@@ -1,6 +1,11 @@
 "use client";
 
 import MetricCard from "@/app/components/ui/MetricCard";
+import {
+  getBloodPressureStatus,
+  getVitalMetricStatus,
+  type VitalBaseline,
+} from "@/lib/vital-alerts";
 
 export interface VitalData {
   systolic: number;
@@ -10,32 +15,14 @@ export interface VitalData {
   oxygenSat: number;
 }
 
-function getStatus(key: string, val: number): "ok" | "warning" | "critical" {
-  const ranges: Record<string, { warn: [number, number]; crit: [number, number] }> = {
-    systolic: { warn: [130, 140], crit: [141, 999] },
-    diastolic: { warn: [85, 90], crit: [91, 999] },
-    temperature: { warn: [37.5, 38], crit: [38.1, 99] },
-    heartRate: { warn: [90, 100], crit: [101, 999] },
-    oxygenSat: { warn: [93, 95], crit: [0, 92] },
-  };
-  const r = ranges[key];
-  if (!r) return "ok";
-  if (key === "oxygenSat") {
-    if (val <= r.crit[1]) return "critical";
-    if (val <= r.warn[1]) return "warning";
-    return "ok";
-  }
-  if (val >= r.crit[0]) return "critical";
-  if (val >= r.warn[0]) return "warning";
-  return "ok";
-}
-
 export default function VitalSignsForm({
   vitals,
   onChange,
+  baseline,
 }: {
   vitals: VitalData;
   onChange: (vitals: VitalData) => void;
+  baseline?: VitalBaseline | null;
 }) {
   const update = (key: keyof VitalData, val: number) => {
     onChange({ ...vitals, [key]: val });
@@ -124,21 +111,21 @@ export default function VitalSignsForm({
           label="ความดัน"
           value={`${vitals.systolic}/${vitals.diastolic}`}
           unit="mmHg"
-          status={getStatus("systolic", vitals.systolic)}
+          status={getBloodPressureStatus(vitals.systolic, vitals.diastolic, baseline)}
           icon={fields[0].icon}
         />
         <MetricCard
           label="อุณหภูมิ"
           value={vitals.temperature.toFixed(1)}
           unit="°C"
-          status={getStatus("temperature", vitals.temperature)}
+          status={getVitalMetricStatus("temperature", vitals.temperature, baseline)}
           icon={fields[2].icon}
         />
         <MetricCard
           label="ชีพจร"
           value={vitals.heartRate}
           unit="bpm"
-          status={getStatus("heartRate", vitals.heartRate)}
+          status={getVitalMetricStatus("heartRate", vitals.heartRate, baseline)}
           icon={fields[3].icon}
         />
       </div>
@@ -147,7 +134,7 @@ export default function VitalSignsForm({
       <div className="space-y-5">
         {fields.map((f) => {
           const val = vitals[f.key];
-          const status = getStatus(f.key, val);
+          const status = getVitalMetricStatus(f.key, val, baseline);
           const statusColor =
             status === "critical"
               ? "accent-red-500"

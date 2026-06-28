@@ -30,28 +30,69 @@ function medicationRows(orgId: string, patientId: string, medications: PatientRe
     organizationId: string;
     patientId: string;
     name: string;
+    strength: string | null;
+    doseAmount: number | null;
+    doseUnit: string | null;
     dosage: string;
     scheduleTime: string;
     timeOfDay: string[];
+    isPrn: boolean;
+    frequency: string;
+    frequencyDays: number[];
+    indication: string | null;
+    appearance: string | null;
     instruction: string | null;
   }> = [];
 
   for (const med of medications ?? []) {
-    const times = med.timeOfDay?.length ? med.timeOfDay : (["MORNING"] as TimeOfDay[]);
-    for (const slot of times) {
+    const doseAmount = Number(med.doseAmount);
+    if (!med.name.trim() || !med.strength.trim() || !Number.isFinite(doseAmount) || doseAmount <= 0 || !med.doseUnit.trim()) {
+      continue;
+    }
+    const times = med.isPrn
+      ? []
+      : med.timeOfDay?.length ? med.timeOfDay : (["MORNING"] as TimeOfDay[]);
+    const rowsForMed = med.isPrn ? ([null] as const) : times;
+    for (const slot of rowsForMed) {
       rows.push({
         organizationId: orgId,
         patientId,
         name: sanitizeText(med.name, 200),
-        dosage: sanitizeText(med.dosage, 200),
-        scheduleTime: TIME_OF_DAY_SCHEDULE[slot],
-        timeOfDay: [slot],
+        strength: sanitizeText(med.strength, 80) || null,
+        doseAmount,
+        doseUnit: sanitizeText(med.doseUnit, 40) || null,
+        dosage: `${med.doseAmount} ${med.doseUnit}`.trim(),
+        scheduleTime: slot ? TIME_OF_DAY_SCHEDULE[slot] : "PRN",
+        timeOfDay: slot ? [slot] : [],
+        isPrn: med.isPrn ?? false,
+        frequency: med.frequency ?? "DAILY",
+        frequencyDays: med.frequency === "CUSTOM_DAYS" ? (med.frequencyDays ?? []) : [],
+        indication: sanitizeText(med.indication, 200) || null,
+        appearance: sanitizeText(med.appearance, 200) || null,
         instruction: sanitizeText(med.instruction, 500) || null,
       });
     }
   }
 
-  return rows.filter((row) => row.name && row.dosage);
+  return rows.filter((row) => row.name && row.strength && row.doseAmount && row.doseAmount > 0 && row.doseUnit);
+}
+
+function hasIncompleteMedication(medications: PatientRegistrationInput["medications"]) {
+  return (medications ?? []).some((med) => {
+    const hasAny = Boolean(med.name?.trim() || med.strength?.trim() || String(med.doseAmount ?? "").trim());
+    const doseAmount = Number(med.doseAmount);
+    const missingRequired = hasAny && !(
+      med.name?.trim() &&
+      med.strength?.trim() &&
+      String(med.doseAmount ?? "").trim() &&
+      Number.isFinite(doseAmount) &&
+      doseAmount > 0 &&
+      med.doseUnit?.trim()
+    );
+    const missingCustomDays =
+      hasAny && !med.isPrn && med.frequency === "CUSTOM_DAYS" && (med.frequencyDays ?? []).length === 0;
+    return missingRequired || missingCustomDays;
+  });
 }
 
 export async function GET(request: Request, context: { params: Promise<{ patientId: string }> }) {
@@ -113,11 +154,32 @@ export async function GET(request: Request, context: { params: Promise<{ patient
           medications: patient.medications.length
             ? patient.medications.map((med) => ({
                 name: med.name,
+                strength: med.strength ?? "",
+                doseAmount: med.doseAmount == null ? "" : String(med.doseAmount),
+                doseUnit: med.doseUnit ?? "เม็ด",
                 dosage: med.dosage,
                 timeOfDay: med.timeOfDay.length ? (med.timeOfDay as TimeOfDay[]) : ["MORNING"],
+                isPrn: med.isPrn,
+                frequency: (med.frequency as PatientRegistrationInput["medications"][number]["frequency"]) ?? "DAILY",
+                frequencyDays: med.frequencyDays,
+                indication: med.indication ?? "",
+                appearance: med.appearance ?? "",
                 instruction: med.instruction ?? "",
               }))
-            : [{ name: "", dosage: "", timeOfDay: ["MORNING"], instruction: "" }],
+            : [{
+                name: "",
+                strength: "",
+                doseAmount: "",
+                doseUnit: "เม็ด",
+                dosage: "",
+                timeOfDay: ["MORNING"],
+                isPrn: false,
+                frequency: "DAILY",
+                frequencyDays: [],
+                indication: "",
+                appearance: "",
+                instruction: "",
+              }],
           preferredHospital: patient.preferredHospital ?? "",
           hospitalNumber: patient.hospitalNumber ?? "",
           insuranceType: patient.insuranceType ?? "SOCIAL_SECURITY",
@@ -145,6 +207,13 @@ export async function PUT(request: Request, context: { params: Promise<{ patient
 
     if (!body.orgId || !body.firstName || !body.lastName || !body.dateOfBirth || !body.gender) {
       return NextResponse.json({ error: "Missing required patient fields" }, { status: 400 });
+    }
+
+    if (hasIncompleteMedication(body.medications)) {
+      return NextResponse.json(
+        { error: "Medication name, strength, and dose are required for every medication" },
+        { status: 400 }
+      );
     }
 
     await requireOwnerOrAdmin(body.orgId, session.user.id);

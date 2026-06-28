@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import StatusBadge from "@/app/components/ui/StatusBadge";
+import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 import CheckInOut from "./CheckInOut";
 import VitalSignsForm, { type VitalData } from "./VitalSignsForm";
 import PainBodyMap from "./PainBodyMap";
@@ -15,6 +16,7 @@ import {
   validationNeedsConfirmation,
   type ValidationIssue,
 } from "@/lib/vital-validation";
+import { createVitalSignAction } from "./actions";
 
 interface PatientSummary {
   id: string;
@@ -28,6 +30,16 @@ interface PatientSummary {
   baselineTemperature: number | null;
   baselineHeartRate: number | null;
   baselineOxygenSat: number | null;
+  baselineSystolicLower: number | null;
+  baselineSystolicUpper: number | null;
+  baselineDiastolicLower: number | null;
+  baselineDiastolicUpper: number | null;
+  baselineTemperatureLower: number | null;
+  baselineTemperatureUpper: number | null;
+  baselineHeartRateLower: number | null;
+  baselineHeartRateUpper: number | null;
+  baselineOxygenSatMin: number | null;
+  baselineOxygenSatMax: number | null;
   aiEnabled?: boolean;
 }
 
@@ -83,7 +95,7 @@ export default function CaregiverDashboard() {
           setVitals(vitalsFromPatient(first));
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "โหลดข้อมูลผู้ป่วยไม่สำเร็จ");
+        setError(err instanceof Error ? err.message : "โหลดข้อมูลผู้สูงอายุไม่สำเร็จ");
       }
     }
     loadPatient();
@@ -101,7 +113,7 @@ export default function CaregiverDashboard() {
 
   const runSave = async (validationConfirmed: boolean) => {
     if (!patient) {
-      setError("ไม่พบข้อมูลผู้ป่วย กรุณาลงทะเบียนผู้ป่วยก่อนใช้งาน");
+      setError("ไม่พบข้อมูลผู้สูงอายุ กรุณาเพิ่มข้อมูลผู้สูงอายุก่อนใช้งาน");
       return;
     }
 
@@ -111,7 +123,7 @@ export default function CaregiverDashboard() {
     }
 
     if (pendingMedCount > 0) {
-      setError(`ยังมีรายการยาที่รอให้ ${pendingMedCount} รายการ — กรุณาให้ยาหรือข้ามก่อนจบงาน`);
+      setError(`ยังมีรายการยาในรอบนี้ที่ต้องทำอีก ${pendingMedCount} รายการ — กรุณาทำรายการหรือข้ามก่อนจบงาน`);
       return;
     }
 
@@ -130,17 +142,11 @@ export default function CaregiverDashboard() {
     setShowConfirmDialog(false);
 
     try {
-      const res = await fetch("/api/vitals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orgId,
-          patientId: patient.id,
-          ...vitals,
-        }),
+      await createVitalSignAction({
+        orgId,
+        patientId: patient.id,
+        ...vitals,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "บันทึกไม่สำเร็จ");
 
       if (patient.aiEnabled !== false) {
         try {
@@ -238,7 +244,7 @@ export default function CaregiverDashboard() {
           <p className="text-muted-foreground text-sm">
             {patient
               ? `${patient.firstName} ${patient.lastName}${patient.nickname ? ` (${patient.nickname})` : ""} — ห้อง ${patient.roomNumber ?? "—"}`
-              : "กำลังโหลดข้อมูลผู้ป่วย..."}
+              : "กำลังโหลดข้อมูลผู้สูงอายุ..."}
           </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -247,15 +253,17 @@ export default function CaregiverDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.5-1.632Z" />
             </svg>
           </span>
-          พยาบาล: {session?.user?.name ?? "—"}
+          ผู้ดูแล: {session?.user?.name ?? "—"}
         </div>
       </div>
 
       {patient && patient.allergies.length > 0 && (
         <div className="p-4 rounded-xl bg-rose-50 text-rose-700 border-2 border-rose-200 text-sm font-medium">
-          ⚠️ แพ้: {patient.allergies.join(", ")} — ตรวจสอบก่อนจ่ายยา
+          ⚠️ แพ้: {patient.allergies.join(", ")} — ตรวจสอบก่อนดูแล
         </div>
       )}
+
+      <MedicalDisclaimer />
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 text-sm">
@@ -271,7 +279,7 @@ export default function CaregiverDashboard() {
 
       {pendingMedCount > 0 && (
         <div className="p-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm">
-          ระบบจะไม่ยอมให้จบงานจนกว่าจะดำเนินการยาครบ — เหลืออีก {pendingMedCount} รายการ
+          ระบบจะไม่ยอมให้จบงานจนกว่าจะดำเนินการยาในรอบนี้ครบ — เหลืออีก {pendingMedCount} รายการ
         </div>
       )}
 
@@ -279,7 +287,7 @@ export default function CaregiverDashboard() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
-          <VitalSignsForm vitals={vitals} onChange={setVitals} />
+          <VitalSignsForm vitals={vitals} onChange={setVitals} baseline={patient} />
           <PainBodyMap />
         </div>
         <div className="space-y-6">

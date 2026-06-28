@@ -25,7 +25,7 @@ interface PatientRegistrationDraftRow {
 const statusLabels: Record<PatientRow["status"], { label: string; className: string }> = {
   stable: { label: "Stable", className: "bg-emerald-100 text-emerald-700" },
   monitoring: { label: "Monitoring", className: "bg-amber-100 text-amber-700" },
-  critical: { label: "Critical", className: "bg-rose-100 text-rose-700" },
+  critical: { label: "ตรวจสอบด่วน", className: "bg-rose-100 text-rose-700" },
 };
 
 function formatRelativeTime(dateStr: string) {
@@ -105,8 +105,8 @@ export default function OrgDashboard() {
           </h1>
           <p className="text-muted-foreground mt-1">
             {access?.isOwner
-              ? "ภาพรวม Workspace — ติดตามสถานะผู้ป่วยและเข้าสู่ระบบบันทึกข้อมูล"
-              : "Manage your patients, caregivers, and alerts"}
+              ? "ภาพรวม Workspace — ติดตามสถานะผู้สูงอายุและเข้าสู่ระบบบันทึกข้อมูล"
+              : "จัดการข้อมูลผู้สูงอายุ ผู้ดูแล และการแจ้งเตือน"}
           </p>
         </div>
 
@@ -135,8 +135,8 @@ export default function OrgDashboard() {
           {access?.canAccessCaregiver && (
           <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
             <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center text-2xl mb-3">👨‍⚕️</div>
-            <h3 className="text-lg font-bold text-foreground">Caregiver Portal</h3>
-            <p className="text-sm text-muted-foreground mb-4">เข้าสู่ระบบบันทึกข้อมูลสำหรับพยาบาลและผู้ดูแล</p>
+            <h3 className="text-lg font-bold text-foreground">ระบบบันทึกข้อมูล</h3>
+            <p className="text-sm text-muted-foreground mb-4">เข้าสู่ระบบบันทึกข้อมูลสำหรับเจ้าหน้าที่</p>
             <Link href={`/${orgId}/caregiver`} className="w-full py-2 bg-muted text-foreground rounded-lg font-medium hover:bg-muted/80 transition-colors">
               Enter Portal
             </Link>
@@ -146,7 +146,7 @@ export default function OrgDashboard() {
           {access?.canAccessFamily && (
           <div className="bg-card p-6 rounded-2xl border border-border shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
             <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-3">👨‍👩‍👧‍👦</div>
-            <h3 className="text-lg font-bold text-foreground">Family Portal</h3>
+            <h3 className="text-lg font-bold text-foreground">หน้าจอสำหรับครอบครัว</h3>
             <p className="text-sm text-muted-foreground mb-4">เข้าสู่หน้าจอสำหรับครอบครัวเพื่อดูข้อมูลแบบ Real-time</p>
             <Link href={`/${orgId}/family`} className="w-full py-2 bg-muted text-foreground rounded-lg font-medium hover:bg-muted/80 transition-colors">
               Enter Portal
@@ -156,11 +156,11 @@ export default function OrgDashboard() {
 
           {access?.canAccessFamily && (
           <div className="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-2xl border border-rose-100 dark:border-rose-900 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 bg-rose-200 text-rose-700 rounded-full flex items-center justify-center text-2xl mb-3">🚨</div>
-            <h3 className="text-lg font-bold text-rose-900 dark:text-rose-200">แจ้งเหตุฉุกเฉิน</h3>
-            <p className="text-sm text-rose-700/80 mb-4">ส่งสัญญาณฉุกเฉินถึงครอบครัวทันที + โทร 1669</p>
+            <div className="w-12 h-12 bg-rose-200 text-rose-700 rounded-full flex items-center justify-center text-2xl mb-3">☎️</div>
+            <h3 className="text-lg font-bold text-rose-900 dark:text-rose-200">ติดต่อด่วน</h3>
+            <p className="text-sm text-rose-700/80 mb-4">ส่งข้อความขอความช่วยเหลือให้ครอบครัว และแสดงเบอร์ 1669 ให้ผู้ใช้เลือกโทรเอง</p>
             <Link href={`/${orgId}/emergency`} className="w-full py-2 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 transition-colors">
-              เปิดหน้าฉุกเฉิน
+              เปิดหน้าติดต่อด่วน
             </Link>
           </div>
           )}
@@ -168,7 +168,7 @@ export default function OrgDashboard() {
 
         <div className="bg-card rounded-2xl border border-border p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <h2 className="text-xl font-bold text-foreground">Active Patients</h2>
+            <h2 className="text-xl font-bold text-foreground">ผู้สูงอายุในความดูแล</h2>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted-foreground">{patients.length} คน</span>
               {access?.canAccessDashboard && (
@@ -176,7 +176,7 @@ export default function OrgDashboard() {
                   href={`/${orgId}/patients/new`}
                   className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition-colors"
                 >
-                  + ลงทะเบียนผู้ป่วย
+                  + เพิ่มข้อมูลผู้สูงอายุ
                 </Link>
               )}
             </div>
@@ -194,16 +194,16 @@ export default function OrgDashboard() {
             </div>
           ) : patients.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p>ยังไม่มีผู้ป่วยในระบบ</p>
+              <p>ยังไม่มีผู้สูงอายุในระบบ</p>
               {access?.canAccessDashboard ? (
                 <Link
                   href={`/${orgId}/patients/new`}
                   className="inline-block mt-4 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark"
                 >
-                  เริ่มลงทะเบียนผู้สูงอายุ
+                  ลงทะเบียนผู้สูงอายุใหม่
                 </Link>
               ) : (
-                <p className="text-sm mt-1">ติดต่อเจ้าของ workspace เพื่อเพิ่มผู้ป่วย</p>
+                <p className="text-sm mt-1">ติดต่อผู้ดูแลระบบเพื่อเพิ่มข้อมูลผู้สูงอายุ</p>
               )}
             </div>
           ) : (
@@ -214,7 +214,7 @@ export default function OrgDashboard() {
                     <th className="pb-3 font-medium">Name</th>
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">Last Update</th>
-                    <th className="pb-3 font-medium">Assigned Caregiver</th>
+                    <th className="pb-3 font-medium">เจ้าหน้าที่ผู้รับผิดชอบ</th>
                     {access?.canAccessDashboard && <th className="pb-3 font-medium text-right">Action</th>}
                   </tr>
                 </thead>
