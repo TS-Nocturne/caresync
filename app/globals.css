@@ -759,7 +759,7 @@ table {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 32px 16px;
   background:
     radial-gradient(ellipse at top left, rgba(13, 148, 136, 0.08) 0%, transparent 50%),
     radial-gradient(ellipse at bottom right, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
@@ -787,7 +787,7 @@ table {
 
 .workspace-selector__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
   gap: 20px;
   max-width: 720px;
   width: 100%;
@@ -795,7 +795,7 @@ table {
 
 .workspace-card {
   position: relative;
-  padding: 28px 24px;
+  padding: 24px 18px;
   border-radius: var(--radius-2xl);
   background: var(--glass-bg);
   backdrop-filter: blur(16px);
@@ -946,6 +946,7 @@ table {
   top: calc(100% + 8px);
   right: 0;
   min-width: 260px;
+  max-width: calc(100vw - 1rem);
   padding: 8px;
   border-radius: 16px;
   background: var(--card);
@@ -953,6 +954,16 @@ table {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
   z-index: 100;
   animation: fade-in 0.2s ease-out;
+}
+
+@media (min-width: 640px) {
+  .workspace-selector {
+    padding: 40px 24px;
+  }
+
+  .workspace-card {
+    padding: 28px 24px;
+  }
 }
 
 .workspace-switcher__item {

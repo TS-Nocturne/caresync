@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { apiError } from "@/lib/api-security";
+import { findWorkspaceInviteByToken } from "@/lib/workspace-invites";
 
 export async function GET(
   _request: Request,
@@ -9,13 +9,7 @@ export async function GET(
   try {
     const { token } = await context.params;
 
-    const invite = await prisma.workspaceInvite.findUnique({
-      where: { token },
-      include: { 
-        organization: { select: { name: true } },
-        createdBy: { select: { name: true } }
-      },
-    });
+    const invite = await findWorkspaceInviteByToken(token);
 
     if (!invite) {
       return NextResponse.json({ error: "ลิงก์เชิญไม่ถูกต้อง" }, { status: 404 });

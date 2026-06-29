@@ -63,9 +63,12 @@ export async function createVitalSignAction(input: CreateVitalSignInput) {
     diastolic: toNullableNumber(diastolic),
     temperature: toNullableNumber(temperature),
     heartRate: toNullableNumber(heartRate),
-    oxygenSat: toNullableNumber(oxygenSat),
-    notes: typeof notes === "string" ? notes : null,
-  };
+      oxygenSat: toNullableNumber(oxygenSat),
+      notes: typeof notes === "string" ? notes : null,
+      recordedById: session.user.id,
+      recordedByName: session.user.name,
+      recordedByRole: "CAREGIVER",
+    };
 
   const description = [
     systolic != null && diastolic != null ? `ความดัน ${systolic}/${diastolic}` : null,
@@ -85,7 +88,7 @@ export async function createVitalSignAction(input: CreateVitalSignInput) {
         organizationId: orgId,
         patientId,
         type: "VITAL_RECORDED",
-        title: "บันทึกสัญญาณชีพ",
+        title: "บันทึกค่าสถิติร่างกาย",
         description: `${patient.firstName} ${patient.lastName}: ${description}`,
         userId: session.user.id,
       },

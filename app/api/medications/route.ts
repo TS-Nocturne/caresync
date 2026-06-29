@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
-import { requirePermission } from "@/lib/caregiver-access";
-import { PERMISSIONS } from "@/lib/permissions";
 import { apiError, readJsonBody } from "@/lib/api-security";
 import {
   getMedicationWindowForTime,
@@ -10,6 +8,20 @@ import {
   isMedicationInWindow,
 } from "@/lib/medication-schedule";
 import { requireWritableSubscription } from "@/lib/subscriptions";
+import { getPortalAccess, requirePatientAccess } from "@/lib/workspace-access";
+
+type MedicationSkipReason = "FAMILY_GIVEN" | "PATIENT_SELF_ADMINISTERED" | "OTHER";
+
+function actorRoleLabel(access: Awaited<ReturnType<typeof getPortalAccess>>) {
+  if (access?.isFamily && !access.isCaregiver && !access.isOwner && !access.isAdmin) return "FAMILY";
+  return "CAREGIVER";
+}
+
+function skipReasonTitle(reason?: MedicationSkipReason) {
+  if (reason === "FAMILY_GIVEN") return "Skip: family already gave medication";
+  if (reason === "PATIENT_SELF_ADMINISTERED") return "Skip: patient already self-administered";
+  return "Medication skipped";
+}
 
 export async function GET(request: Request) {
   try {
@@ -25,7 +37,7 @@ export async function GET(request: Request) {
     }
 
     await requireOrgMembership(orgId, session.user.id);
-    await requirePermission(orgId, session.user.id, patientId, PERMISSIONS.MEDICATIONS_READ);
+    await requirePatientAccess(orgId, session.user.id, patientId);
 
     const window = getMedicationWindowForTime(now);
     const medications = await prisma.medication.findMany({
@@ -63,9 +75,11 @@ export async function PATCH(request: Request) {
       medicationId?: string;
       status?: "GIVEN" | "SKIPPED" | "PENDING";
       signatureUrl?: string;
+      skipReason?: MedicationSkipReason;
+      evidenceVerified?: boolean;
     }>(request);
 
-    const { orgId, medicationId, status, signatureUrl } = body;
+    const { orgId, medicationId, status, signatureUrl, skipReason, evidenceVerified } = body;
 
     if (!orgId || !medicationId || !status) {
       return NextResponse.json(
@@ -76,6 +90,7 @@ export async function PATCH(request: Request) {
 
     await requireOrgMembership(orgId, session.user.id);
     await requireWritableSubscription(orgId);
+    const access = await getPortalAccess(orgId, session.user.id);
 
     const medication = await prisma.medication.findFirst({
       where: { id: medicationId, organizationId: orgId },
@@ -86,18 +101,38 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Medication not found" }, { status: 404 });
     }
 
-    await requirePermission(orgId, session.user.id, medication.patientId, PERMISSIONS.MEDICATIONS_WRITE);
+    await requirePatientAccess(orgId, session.user.id, medication.patientId);
+
+    if (
+      status === "SKIPPED" &&
+      (skipReason === "FAMILY_GIVEN" || skipReason === "PATIENT_SELF_ADMINISTERED") &&
+      evidenceVerified !== true
+    ) {
+      return NextResponse.json(
+        { error: "Please verify the pill organizer or medication packet before confirming this skip reason." },
+        { status: 400 }
+      );
+    }
+
+    const handledByRole =
+      status === "SKIPPED" && skipReason === "PATIENT_SELF_ADMINISTERED"
+        ? "PATIENT"
+        : actorRoleLabel(access);
 
     const updated = await prisma.medication.update({
       where: { id: medicationId },
       data: {
         status,
-        signatureUrl: signatureUrl ?? medication.signatureUrl,
+        signatureUrl: status === "GIVEN" ? (signatureUrl ?? medication.signatureUrl) : null,
+        skipReason: status === "SKIPPED" ? (skipReason ?? "OTHER") : null,
+        handledByName: status === "PENDING" ? null : session.user.name,
+        handledByRole: status === "PENDING" ? null : handledByRole,
         givenAt: status === "GIVEN" ? new Date() : status === "PENDING" ? null : medication.givenAt,
       },
     });
 
-    await prisma.activityLog.create({
+    if (status !== "PENDING") {
+      await prisma.activityLog.create({
       data: {
         organizationId: orgId,
         patientId: medication.patientId,
@@ -110,13 +145,16 @@ export async function PATCH(request: Request) {
             ? `${medication.doseAmount} ${medication.doseUnit}`
             : medication.dosage,
           medication.isPrn ? "(PRN)" : null,
+          status === "SKIPPED" ? skipReasonTitle(skipReason) : null,
+          status === "SKIPPED" && evidenceVerified ? "(evidence verified)" : null,
           "—",
           medication.patient.firstName,
           medication.patient.lastName,
         ].filter(Boolean).join(" "),
         userId: session.user.id,
       },
-    });
+      });
+    }
 
     return NextResponse.json({ data: updated });
   } catch (error) {

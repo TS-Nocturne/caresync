@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -55,6 +55,7 @@ const emptyMed = (): MedicationInput => ({
   indication: "",
   appearance: "",
   instruction: "",
+  selfAdministered: false,
 });
 
 const emptyContact = (): EmergencyContactInput => ({
@@ -301,7 +302,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
           )
       );
       if (incompleteMedication) {
-        return "กรุณากรอกชื่อยา ขนาดยา จำนวน และหน่วยให้ครบทุกช่อง";
+        return "กรุณากรอกชื่อรายการ ขนาด จำนวน และหน่วยให้ครบทุกช่อง";
       }
       const customWithoutDays = medications.find(
         (med) =>
@@ -311,7 +312,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
           med.frequencyDays.length === 0
       );
       if (customWithoutDays) {
-        return "กรุณาเลือกวันที่ต้องให้ยาอย่างน้อย 1 วัน";
+        return "กรุณาเลือกวันที่ต้องทำรายการอย่างน้อย 1 วัน";
       }
     }
     if (s === 5) {
@@ -564,7 +565,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                 คุณเลือกที่จะ <strong className="text-rose-600">ไม่เปิดใช้งาน</strong> ระบบ AI สำหรับประมวลผลข้อมูลเฝ้าระวังเบื้องต้น
               </p>
               <p>
-                ส่งผลให้ระบบ SilverLink Pro จะทำงานเป็นเพียงสมุดบันทึกอาการเท่านั้น โดยระบบจะ <strong className="text-rose-600">ไม่แสดงสัญญาณเฝ้าระวังจากข้อมูลยาและสัญญาณชีพ</strong>
+                ส่งผลให้ระบบ SilverLink Pro จะทำงานเป็นเพียงสมุดบันทึกทั่วไปเท่านั้น โดยระบบจะ <strong className="text-rose-600">ไม่แสดงการแจ้งเตือนจากข้อมูลและสถิติร่างกาย</strong>
               </p>
               <p className="font-medium text-foreground">
                 คุณยืนยันที่จะดำเนินการต่อโดยไม่ใช้ AI ใช่หรือไม่?
@@ -676,7 +677,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
             </div>
 
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="font-medium text-foreground">ส่วนที่ 2: ข้อตกลงที่บังคับ (เพื่อใช้งานแอปได้)</h3>
+              <h3 className="font-medium text-foreground">ส่วนที่ 2: ข้อตกลงที่บังคับ (เพื่อใช้งานแพลตฟอร์มได้)</h3>
               <label className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5 cursor-pointer">
                 <input type="checkbox" checked={consentMandatory} onChange={(e) => setConsentMandatory(e.target.checked)} className="w-5 h-5 mt-0.5 text-primary rounded" />
                 <span className="text-sm text-foreground/90 leading-relaxed">
@@ -690,7 +691,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
               <label className="flex items-start gap-3 p-4 rounded-xl border border-border hover:bg-muted/30 cursor-pointer transition-colors">
                 <input type="checkbox" checked={consentOptional} onChange={(e) => setConsentOptional(e.target.checked)} className="w-5 h-5 mt-0.5 text-primary rounded" />
                 <span className="text-sm text-foreground/90 leading-relaxed">
-                  ข้าพเจ้ายินยอมให้ระบบส่งข้อมูลอาการและสัญญาณชีพไปยังผู้ให้บริการ AI (เช่น Google/OpenAI) เพื่อประมวลผลและแสดงข้อมูลเฝ้าระวังเบื้องต้น โดยข้อมูลจะถูกใช้แบบครั้งต่อครั้งเท่านั้น และจะไม่ถูกนำไปบันทึกหรือฝึกฝนโมเดล AI (Zero Data Retention / No Training) เพื่อความปลอดภัยสูงสุด
+                  ข้าพเจ้ายินยอมให้ระบบส่งข้อมูลสุขภาพและค่าสถิติร่างกายไปยังผู้ให้บริการ AI (เช่น Google/OpenAI) เพื่อประมวลผลและแสดงข้อมูลเฝ้าระวังเบื้องต้น โดยข้อมูลจะถูกใช้แบบครั้งต่อครั้งเท่านั้น และจะไม่ถูกนำไปบันทึกหรือฝึกฝนโมเดล AI (Zero Data Retention / No Training) เพื่อความปลอดภัยสูงสุด
                 </span>
               </label>
             </div>
@@ -797,7 +798,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">ประวัติแพ้ยา / แพ้อาหาร ⚠️</label>
+              <label className="text-sm font-medium mb-2 block">ประวัติการแพ้ (เช่น อาหาร, สิ่งแวดล้อม) ⚠️</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {COMMON_ALLERGIES.map((a) => (
                   <button
@@ -846,7 +847,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
             </div>
 
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-              <p className="text-sm font-semibold">⭐ เกณฑ์สัญญาณชีพปกติ (Baseline Vitals)</p>
+              <p className="text-sm font-semibold">⭐ เกณฑ์ค่าสถิติร่างกายปกติ (Baseline Vitals)</p>
               <p className="text-xs text-muted-foreground">AI จะใช้ค่านี้แทนเกณฑ์ทั่วไป — ลด False Alarm</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
@@ -876,14 +877,14 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
 
         {step === 4 && (
           <>
-            <h2 className="font-semibold text-lg">💊 ข้อมูลยาตั้งต้น</h2>
-            <p className="text-sm text-muted-foreground">เพิ่มรายการยาทีละตัว — ระบบจะสร้าง Checklist ให้พยาบาลติ๊กทุกวัน</p>
+            <h2 className="font-semibold text-lg">💊 ข้อมูลกิจวัตรและวิตามิน/ยา</h2>
+            <p className="text-sm text-muted-foreground">เพิ่มรายการทีละตัว — ระบบจะสร้าง Checklist ให้ผู้ดูแลติ๊กทุกวัน</p>
 
             <div className="space-y-4">
               {medications.map((med, idx) => (
                 <div key={idx} className="p-4 rounded-xl border border-border space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">ยาที่ {idx + 1}</span>
+                    <span className="text-sm font-medium">รายการที่ {idx + 1}</span>
                     {medications.length > 1 && (
                       <button
                         type="button"
@@ -894,12 +895,12 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                       </button>
                     )}
                   </div>
-                  <input className={inputClass} placeholder="ชื่อยา เช่น Amlodipine" value={med.name} onChange={(e) => {
+                  <input className={inputClass} placeholder="ชื่อรายการ เช่น วิตามินซี, ยาลดความดัน" value={med.name} onChange={(e) => {
                     const next = [...medications];
                     next[idx] = { ...med, name: e.target.value };
                     setMedications(next);
                   }} />
-                  <input className={inputClass} placeholder="ขนาดยา / Strength เช่น 5 mg, 10 mg, 500 mg" value={med.strength ?? ""} onChange={(e) => {
+                  <input className={inputClass} placeholder="ขนาด / ปริมาณ เช่น 500 mg" value={med.strength ?? ""} onChange={(e) => {
                     const next = [...medications];
                     next[idx] = { ...med, strength: e.target.value };
                     setMedications(next);
@@ -946,7 +947,19 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                         setMedications(next);
                       }}
                     />
-                    <span>💊 ทานเฉพาะเมื่อมีอาการ (PRN)</span>
+                    <span>💊 ทาน/ใช้เฉพาะเมื่อจำเป็น (PRN)</span>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={med.selfAdministered ?? false}
+                      onChange={(e) => {
+                        const next = [...medications];
+                        next[idx] = { ...med, selfAdministered: e.target.checked };
+                        setMedications(next);
+                      }}
+                    />
+                    <span>ผู้สูงอายุทานยานี้เองได้</span>
                   </label>
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">ช่วงเวลา</label>
@@ -1030,7 +1043,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                     <div className="mt-3 space-y-3">
                       <input
                         className={inputClass}
-                        placeholder="สรรพคุณ/ข้อบ่งใช้ เช่น ลดความดัน"
+                        placeholder="เหตุผลที่ใช้ เช่น บำรุงร่างกาย, ลดความดัน"
                         value={med.indication ?? ""}
                         onChange={(e) => {
                           const next = [...medications];
@@ -1040,7 +1053,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                       />
                       <input
                         className={inputClass}
-                        placeholder="ลักษณะยา เช่น เม็ดกลมสีเหลือง"
+                        placeholder="ลักษณะ เช่น เม็ดกลมสีเหลือง"
                         value={med.appearance ?? ""}
                         onChange={(e) => {
                           const next = [...medications];
@@ -1059,7 +1072,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
               onClick={() => setMedications([...medications, emptyMed()])}
               className="w-full py-2.5 rounded-xl border-2 border-dashed border-primary/40 text-sm font-medium text-primary hover:bg-primary/5"
             >
-              + เพิ่มรายการยา
+              + เพิ่มรายการ
             </button>
           </>
         )}
@@ -1069,8 +1082,8 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
             <h2 className="font-semibold text-lg">🚑 การจัดการเหตุฉุกเฉิน</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="text-sm font-medium mb-1 block">โรงพยาบาลประจำ</label>
-                <input className={inputClass} value={preferredHospital} onChange={(e) => setPreferredHospital(e.target.value)} placeholder="เช่น โรงพยาบาลศิริราช" />
+                <label className="text-sm font-medium mb-1 block">สถานพยาบาล/คลินิกประจำ</label>
+                <input className={inputClass} value={preferredHospital} onChange={(e) => setPreferredHospital(e.target.value)} placeholder="เช่น โรงพยาบาลศิริราช, คลินิกใกล้บ้าน" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">เลข HN</label>
@@ -1133,8 +1146,8 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                 <p className="text-rose-600"><span className="font-medium">แพ้:</span> {allergies.join(", ")}</p>
               )}
               <p><span className="font-medium">Baseline BP:</span> {baselineSystolic || "—"}/{baselineDiastolic || "—"}</p>
-              <p><span className="font-medium">ยา:</span> {payload.medications.length} รายการ</p>
-              <p><span className="font-medium">โรงพยาบาล:</span> {preferredHospital || "—"} (HN {hospitalNumber || "—"})</p>
+              <p><span className="font-medium">กิจวัตร/วิตามิน:</span> {payload.medications.length} รายการ</p>
+              <p><span className="font-medium">สถานพยาบาล:</span> {preferredHospital || "—"} (HN {hospitalNumber || "—"})</p>
               <p className="text-xs text-muted-foreground pt-2">
                 หลังบันทึก ข้อมูลจะถูกบันทึกลงฐานข้อมูล เพื่อใช้แสดงข้อมูลสุขภาพ
               </p>

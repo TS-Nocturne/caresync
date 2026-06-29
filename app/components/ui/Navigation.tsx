@@ -172,7 +172,7 @@ export default function Navigation() {
                         <div>
                           <div className="workspace-switcher__item-name">{ws.name}</div>
                           <div className="workspace-switcher__item-role">
-                            {ws.role === "owner" ? "เจ้าของ" : ws.role === "admin" ? "ผู้ดูแลระบบ" : "พยาบาล/ผู้ดูแล"}
+                            {ws.role === "owner" ? "เจ้าของ" : ws.role === "admin" ? "ผู้ดูแลระบบ" : "ผู้ดูแล"}
                           </div>
                         </div>
                       </button>

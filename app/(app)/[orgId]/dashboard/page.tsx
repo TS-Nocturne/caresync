@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useActiveOrganization } from "@/lib/auth-client";
 import { usePortalAccess } from "@/app/hooks/usePortalAccess";
+import SharedCalendar from "../(family)/family/SharedCalendar";
 
 interface PatientRow {
   id: string;
@@ -40,6 +41,7 @@ function formatRelativeTime(dateStr: string) {
 
 export default function OrgDashboard() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const orgId = params.orgId as string;
   const { data: activeOrg } = useActiveOrganization();
   const { access } = usePortalAccess(orgId);
@@ -166,12 +168,18 @@ export default function OrgDashboard() {
           )}
         </div>
 
+        {(access?.canAccessDashboard || access?.canAccessCaregiver || access?.canAccessFamily) && (
+          <div className="mb-8">
+            <SharedCalendar orgId={orgId} />
+          </div>
+        )}
+
         <div className="bg-card rounded-2xl border border-border p-4 sm:p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
             <h2 className="text-xl font-bold text-foreground">ผู้สูงอายุในความดูแล</h2>
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm text-muted-foreground">{patients.length} คน</span>
-              {access?.canAccessDashboard && (
+              {access?.canAccessDashboard && patients.length === 0 && (
                 <Link
                   href={`/${orgId}/patients/new`}
                   className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-dark transition-colors"
@@ -179,11 +187,22 @@ export default function OrgDashboard() {
                   + เพิ่มข้อมูลผู้สูงอายุ
                 </Link>
               )}
+              {access?.canAccessDashboard && patients.length > 0 && (
+                <span className="rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  1 ห้องดูแลได้ 1 คน
+                </span>
+              )}
             </div>
           </div>
 
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-rose-50 text-rose-600 text-sm">{error}</div>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-rose-50 text-rose-600 text-sm">{error}</div>
+        )}
+
+          {searchParams.get("patientLimit") === "1" && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Workspace นี้มีผู้สูงอายุอยู่แล้ว ระบบกำหนดให้ 1 ห้องดูแลได้ 1 คนเท่านั้น
+            </div>
           )}
 
           {loading ? (

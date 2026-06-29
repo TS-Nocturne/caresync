@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import ThemeToggle from "@/app/components/ui/ThemeToggle";
 
 export default function OrgNotFound() {
@@ -9,9 +9,9 @@ export default function OrgNotFound() {
       </div>
       <div className="max-w-md w-full p-8 text-center animate-fade-in">
         <div className="text-8xl mb-6">🏥</div>
-        <h2 className="text-3xl font-bold text-foreground mb-4">ไม่พบห้องดูแลผู้ป่วย</h2>
+        <h2 className="text-3xl font-bold text-foreground mb-4">ไม่พบห้องดูแลผู้สูงอายุ</h2>
         <p className="text-muted-foreground mb-8 leading-relaxed">
-          ห้องผู้ป่วยที่คุณพยายามเข้าถึงไม่มีอยู่จริง อาจถูกลบไปแล้ว หรือคุณไม่มีสิทธิ์เข้าถึงห้องนี้
+          ห้องผู้สูงอายุที่คุณพยายามเข้าถึงไม่มีอยู่จริง อาจถูกลบไปแล้ว หรือคุณไม่มีสิทธิ์เข้าถึงห้องนี้
         </p>
         <Link
           href="/dashboard"

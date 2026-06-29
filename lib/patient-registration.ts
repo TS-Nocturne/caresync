@@ -23,6 +23,7 @@ export interface MedicationInput {
   indication?: string;
   appearance?: string;
   instruction?: string;
+  selfAdministered?: boolean;
 }
 
 export interface PatientRegistrationInput {
@@ -161,6 +162,7 @@ export function buildPineconeProfile(patient: {
     indication?: string | null;
     appearance?: string | null;
     instruction?: string | null;
+    selfAdministered?: boolean;
   }>;
 }) {
   return {
@@ -212,6 +214,7 @@ export function buildPineconeProfile(patient: {
       indication: m.indication,
       appearance: m.appearance,
       instruction: m.instruction,
+      self_administered: m.selfAdministered ?? false,
     })),
   };
 }

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { ConsentType } from "@prisma/client";
+﻿import { NextResponse } from "next/server";
+import { ConsentType, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireOrgMembership } from "@/lib/auth-server";
 import { syncPatientContextToPinecone } from "@/lib/patient-context-sync";
@@ -153,6 +153,14 @@ export async function POST(request: Request) {
     await requireWritableSubscription(body.orgId);
 
     const patient = await prisma.$transaction(async (tx) => {
+      const existingPatient = await tx.patient.findFirst({
+        where: { organizationId: body.orgId },
+        select: { id: true },
+      });
+      if (existingPatient) {
+        throw new Error("Workspace นี้มีผู้สูงอายุอยู่แล้ว — ระบบกำหนดให้ 1 ห้องดูแลได้ 1 คนเท่านั้น");
+      }
+
       const created = await tx.patient.create({
         data: {
           organizationId: body.orgId,
@@ -207,6 +215,7 @@ export async function POST(request: Request) {
         indication: string | null;
         appearance: string | null;
         instruction: string | null;
+        selfAdministered: boolean;
       }> = [];
 
       for (const med of body.medications ?? []) {
@@ -235,6 +244,7 @@ export async function POST(request: Request) {
             indication: sanitizeText(med.indication, 200) || null,
             appearance: sanitizeText(med.appearance, 200) || null,
             instruction: sanitizeText(med.instruction, 500) || null,
+            selfAdministered: med.selfAdministered ?? false,
           });
         }
       }
@@ -261,7 +271,7 @@ export async function POST(request: Request) {
             temperature: body.baselineTemperature ?? null,
             heartRate: body.baselineHeartRate ?? null,
             oxygenSat: body.baselineOxygenSat ?? null,
-            notes: "baseline — เกณฑ์สัญญาณชีพปกติส่วนบุคคล",
+            notes: "baseline — เกณฑ์ค่าสถิติร่างกายปกติส่วนบุคคล",
           },
         });
       }
@@ -271,7 +281,7 @@ export async function POST(request: Request) {
           organizationId: body.orgId,
           patientId: created.id,
           type: "SYSTEM_NOTE",
-          title: "ลงทะเบียนผู้ป่วยใหม่",
+          title: "ลงทะเบียนผู้สูงอายุใหม่",
           description: `${created.firstName} ${created.lastName} — onboarding complete`,
           userId: session.user.id,
         },
@@ -317,9 +327,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       data: patient,
-      message: "ลงทะเบียนผู้ป่วยสำเร็จ",
+      message: "ลงทะเบียนผู้สูงอายุสำเร็จ",
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json(
+        { error: "Workspace นี้มีผู้สูงอายุอยู่แล้ว — ระบบกำหนดให้ 1 ห้องดูแลได้ 1 คนเท่านั้น" },
+        { status: 409 }
+      );
+    }
     return apiError(error, "Failed to create patient");
   }
 }

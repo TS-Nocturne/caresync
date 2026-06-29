@@ -31,6 +31,62 @@ function parseEventDate(value: string | undefined) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function eventTypeLabel(type: EventType) {
+  if (type === "VISIT") return "การเข้าเยี่ยม/ครอบครัว";
+  if (type === "MEDICAL_APPOINTMENT") return "นัดหมายทางการแพทย์";
+  if (type === "NURSE_SHIFT") return "กิจกรรมการพยาบาล";
+  if (type === "FAMILY_REQUEST") return "คำร้องขออาสาสมัคร";
+  return "กิจกรรม";
+}
+
+async function notifyCrossPortalEvent({
+  orgId,
+  creatorId,
+  notify,
+  type,
+  title,
+  startTime,
+}: {
+  orgId: string;
+  creatorId: string;
+  notify: "CAREGIVER" | "FAMILY";
+  type: EventType;
+  title: string;
+  startTime: Date;
+}) {
+  const users =
+    notify === "CAREGIVER"
+      ? await prisma.patientCaregiver.findMany({
+          where: { patient: { organizationId: orgId }, userId: { not: creatorId } },
+          include: { user: { include: { accounts: true } } },
+          distinct: ["userId"],
+        })
+      : await prisma.patientFamily.findMany({
+          where: { patient: { organizationId: orgId }, userId: { not: creatorId } },
+          include: { user: { include: { accounts: true } } },
+          distinct: ["userId"],
+        });
+
+  const lineIds = users
+    .flatMap((entry) => entry.user.accounts.filter((account) => account.providerId === "line").map((account) => account.accountId))
+    .filter(Boolean);
+  const uniqueLineIds = [...new Set(lineIds)];
+
+  if (uniqueLineIds.length === 0) return;
+
+  const { sendLinePushMessage } = await import("@/lib/line-push");
+  const targetLabel = notify === "CAREGIVER" ? "ผู้ดูแล" : "ครอบครัว";
+  const formattedDate = startTime.toLocaleString("th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+  const message = `🔔 ปฏิทิน CareSync: มี${eventTypeLabel(type)}ใหม่\n${title}\nเวลา: ${formattedDate}\nแจ้งเตือนถึงฝั่ง${targetLabel}เพื่อเตรียมการล่วงหน้า`;
+
+  for (const lineId of uniqueLineIds) {
+    await sendLinePushMessage(lineId, message);
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const session = await requireSession();
@@ -56,8 +112,10 @@ export async function GET(request: Request) {
     if (startStr && endStr) {
       where = {
         ...where,
-        startTime: { gte: new Date(startStr) },
-        endTime: { lte: new Date(endStr) },
+        AND: [
+          { startTime: { lt: new Date(endStr) } },
+          { endTime: { gt: new Date(startStr) } },
+        ],
       };
     }
 
@@ -133,6 +191,7 @@ export async function POST(request: Request) {
 
     // If FAMILY_REQUEST, trigger Push Notifications
     if (type === "FAMILY_REQUEST") {
+      try {
       // Find all Family members in this organization
       const familyMembers = await prisma.workspaceInvite.findMany({
         where: { organizationId: orgId, portalRole: "FAMILY", status: "ACCEPTED" },
@@ -161,6 +220,24 @@ export async function POST(request: Request) {
         for (const lineId of uniqueLineIds) {
           if (lineId) await sendLinePushMessage(lineId, message);
         }
+      }
+      } catch (notificationError) {
+        console.error("[calendar] Failed to send family-request notification", notificationError);
+      }
+    }
+
+    if (type !== "FAMILY_REQUEST") {
+      try {
+        await notifyCrossPortalEvent({
+          orgId,
+          creatorId: session.user.id,
+          notify: access.isFamily ? "CAREGIVER" : "FAMILY",
+          type,
+          title: sanitizeText(title, 200),
+          startTime: parsedStart,
+        });
+      } catch (notificationError) {
+        console.error("[calendar] Failed to send cross-portal notification", notificationError);
       }
     }
 

@@ -49,7 +49,7 @@ export default function MetricCard({
 }: MetricCardProps) {
   return (
     <div
-      className={`rounded-xl border p-4 transition-all hover:shadow-md ${statusColors[status]}`}
+      className={`rounded-xl border p-3 sm:p-4 transition-all hover:shadow-md ${statusColors[status]}`}
     >
       <div className="flex items-start justify-between mb-2">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -59,8 +59,8 @@ export default function MetricCard({
           <div className={`${statusTextColors[status]} opacity-60`}>{icon}</div>
         )}
       </div>
-      <div className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-bold tabular-nums ${statusTextColors[status]}`}>
+      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+        <span className={`text-xl sm:text-2xl font-bold tabular-nums ${statusTextColors[status]}`}>
           {value}
         </span>
         {unit && (

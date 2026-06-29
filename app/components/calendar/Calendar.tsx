@@ -129,11 +129,11 @@ export default function Calendar({
 
   return (
     <div className="w-full max-w-2xl mx-auto pb-24">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">ปฏิทิน & กิจกรรม</h2>
+      <div className="flex flex-col gap-3 mb-6 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+        <h2 className="text-xl font-bold sm:text-2xl">ปฏิทิน & กิจกรรม</h2>
         <button
           onClick={() => setModalOpen(true)}
-          className="bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold shadow hover:bg-primary/90 transition"
+          className="w-full bg-primary text-white px-4 py-2 rounded-full text-sm font-semibold shadow hover:bg-primary/90 transition min-[420px]:w-auto"
         >
           + เพิ่มกิจกรรม
         </button>
@@ -161,22 +161,22 @@ export default function Calendar({
             let badgeColor = "bg-gray-100 text-gray-800";
             
             if (isFamilyReq && isOpen) {
-              borderColor = "border-emerald-400";
-              bgColor = "bg-emerald-50 dark:bg-emerald-900/20";
-              badgeColor = "bg-emerald-500 text-white";
+              borderColor = "border-amber-400";
+              bgColor = "bg-amber-50 dark:bg-amber-900/20";
+              badgeColor = "bg-amber-500 text-white";
             } else if (ev.type === "VISIT") {
-              borderColor = "border-blue-400";
-              badgeColor = "bg-blue-100 text-blue-800";
+              borderColor = "border-emerald-400";
+              badgeColor = "bg-emerald-100 text-emerald-800";
             } else if (ev.type === "MEDICAL_APPOINTMENT") {
               borderColor = "border-rose-400";
               badgeColor = "bg-rose-100 text-rose-800";
             } else if (ev.type === "NURSE_SHIFT") {
-              borderColor = "border-purple-400";
-              badgeColor = "bg-purple-100 text-purple-800";
+              borderColor = "border-sky-400";
+              badgeColor = "bg-sky-100 text-sky-800";
             }
 
             return (
-              <div key={ev.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+              <div key={ev.id} className="relative flex items-start gap-3 md:items-center md:justify-normal md:gap-0 md:odd:flex-row-reverse group is-active">
                 <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-background bg-slate-200 text-slate-500 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm ${isOpen && isFamilyReq ? "bg-emerald-500 text-white animate-pulse" : ""}`}>
                   {ev.type === "VISIT" && "👋"}
                   {ev.type === "MEDICAL_APPOINTMENT" && "🏥"}
@@ -184,10 +184,10 @@ export default function Calendar({
                   {ev.type === "FAMILY_REQUEST" && "🚗"}
                   {ev.type === "OTHER" && "📌"}
                 </div>
-                <div className={`w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border shadow-sm transition-all ${bgColor} ${borderColor}`}>
-                  <div className="flex justify-between items-start mb-2">
+                <div className={`w-full md:w-[calc(50%-2.5rem)] p-3 sm:p-4 rounded-xl border shadow-sm transition-all ${bgColor} ${borderColor}`}>
+                  <div className="flex flex-col gap-2 mb-2 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
                     <span className={`text-xs font-bold px-2 py-1 rounded-full ${badgeColor}`}>
-                      {ev.type === "FAMILY_REQUEST" ? "ขออาสาสมัคร" : ev.type === "NURSE_SHIFT" ? "เวรพยาบาล" : ev.type === "VISIT" ? "เข้าเยี่ยม" : ev.type === "MEDICAL_APPOINTMENT" ? "นัดแพทย์" : "อื่นๆ"}
+                      {ev.type === "FAMILY_REQUEST" ? "ขออาสาสมัคร" : ev.type === "NURSE_SHIFT" ? "เวรผู้ดูแล" : ev.type === "VISIT" ? "เข้าเยี่ยม" : ev.type === "MEDICAL_APPOINTMENT" ? "นัดตรวจสุขภาพ" : "อื่นๆ"}
                     </span>
                     <span className="text-xs text-gray-500 font-medium">
                       {format(new Date(ev.startTime), "d MMM", { locale: th })} {format(new Date(ev.startTime), "HH:mm")}
@@ -196,8 +196,8 @@ export default function Calendar({
                   <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">{ev.title}</h3>
                   {ev.description && <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{ev.description}</p>}
                   
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-3 mt-4 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
+                    <div className="flex min-w-0 items-center gap-2">
                       {isAssigned && ev.assignee ? (
                         <>
                           {ev.assignee.image ? (
@@ -211,14 +211,14 @@ export default function Calendar({
                           ) : (
                             <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">{ev.assignee.name.charAt(0)}</div>
                           )}
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{ev.assignee.name}</span>
+                          <span className="truncate text-sm font-medium text-gray-700 dark:text-gray-300">{ev.assignee.name}</span>
                         </>
                       ) : isOpen ? (
                         <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">ยังไม่มีคนรับงาน</span>
                       ) : null}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 gap-2">
                       {isFamilyReq && isOpen && (portalRole === "FAMILY" || isOwnerOrAdmin) && ev.creatorId !== currentUserId && (
                         <button
                           onClick={() => handleClaim(ev.id)}
@@ -244,8 +244,8 @@ export default function Calendar({
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-2xl">
             <h3 className="text-xl font-bold mb-4">เพิ่มกิจกรรมใหม่</h3>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -256,9 +256,10 @@ export default function Calendar({
               <div>
                 <label className="block text-sm font-medium mb-1">ประเภท</label>
                 <select value={type} onChange={e => setType(e.target.value as EventType)} className="w-full border dark:border-gray-700 rounded-xl px-4 py-2 bg-transparent">
+                  {portalRole === "FAMILY" && <option value="MEDICAL_APPOINTMENT">🏥 นัดแพทย์ / โรงพยาบาล</option>}
                   <option value="VISIT">👋 เข้าเยี่ยม</option>
-                  {(isOwnerOrAdmin || portalRole === "CAREGIVER") && <option value="MEDICAL_APPOINTMENT">🏥 นัดแพทย์</option>}
-                  {(isOwnerOrAdmin || portalRole === "CAREGIVER") && <option value="NURSE_SHIFT">🩺 ลงเวรพยาบาล</option>}
+                  {(isOwnerOrAdmin || portalRole === "CAREGIVER") && <option value="MEDICAL_APPOINTMENT">🏥 นัดตรวจสุขภาพ</option>}
+                  {(isOwnerOrAdmin || portalRole === "CAREGIVER") && <option value="NURSE_SHIFT">🩺 ลงเวรผู้ดูแล</option>}
                   {canCreateFamilyRequest && <option value="FAMILY_REQUEST">🚗 ขออาสาสมัคร (Family Request)</option>}
                   <option value="OTHER">📌 อื่นๆ</option>
                 </select>
@@ -269,7 +270,7 @@ export default function Calendar({
                 <input required value={eventDate} onChange={e => setEventDate(e.target.value)} type="date" className="w-full border dark:border-gray-700 rounded-xl px-4 py-2 bg-transparent text-sm" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium mb-1">เวลาเริ่ม</label>
                   <div className="flex gap-2">
@@ -323,7 +324,7 @@ export default function Calendar({
                 <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full border dark:border-gray-700 rounded-xl px-4 py-2 bg-transparent" rows={2} placeholder="รายละเอียดเพิ่มเติม..."></textarea>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="grid gap-3 pt-4 min-[420px]:grid-cols-2">
                 <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 font-medium">ยกเลิก</button>
                 <button type="submit" className="flex-1 py-2 rounded-xl bg-primary text-white font-bold shadow-md">บันทึก</button>
               </div>

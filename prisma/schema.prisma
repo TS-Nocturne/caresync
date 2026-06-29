@@ -286,6 +286,8 @@ model Patient {
   vitalSchedules    VitalSchedule[]
   activityLogs      ActivityLog[]
   calendarEvents    CalendarEvent[]
+
+  @@unique([organizationId])
 }
 
 model PatientRegistrationDraft {
@@ -381,6 +383,9 @@ model VitalSign {
   oxygenSat      Float?
   measuredAt     DateTime     @default(now())
   notes          String?
+  recordedById   String?
+  recordedByName String?
+  recordedByRole String?
 
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
 }
@@ -432,8 +437,12 @@ model Medication {
   indication     String?
   appearance     String?
   instruction    String?
+  selfAdministered Boolean    @default(false)
   status         MedStatus    @default(PENDING)
   signatureUrl   String?
+  skipReason     String?
+  handledByName  String?
+  handledByRole  String?
   givenAt        DateTime?
   createdAt      DateTime     @default(now())
 

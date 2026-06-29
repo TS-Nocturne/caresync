@@ -61,7 +61,7 @@ export default function SoftLockWrapper({
               ปลดล็อกการบันทึกข้อมูลผู้สูงอายุ
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              เริ่มทดลองใช้ฟรี 14 วันเพื่อใช้งานการบันทึกสัญญาณชีพ ดัชนีความเจ็บปวด รายการยา อาการผิดปกติ และการแจ้งเตือนแบบครบชุด
+              เริ่มทดลองใช้ฟรี 14 วันเพื่อใช้งานการบันทึกค่าสถิติร่างกาย ความไม่สบายตัว กิจวัตรประจำวัน ข้อสังเกตเพิ่มเติม และการแจ้งเตือนแบบครบชุด
             </p>
 
             <div className="mt-5 grid gap-2 text-left text-sm text-foreground">
@@ -69,10 +69,10 @@ export default function SoftLockWrapper({
                 บันทึกข้อมูลรายวันและตรวจความผิดปกติได้ทันที
               </div>
               <div className="rounded-xl border border-border bg-card/70 px-4 py-3">
-                ใช้ข้อมูลประกอบการติดตามอาการและแจ้งเตือนครอบครัว
+                ใช้ข้อมูลประกอบการดูแลและแจ้งเตือนครอบครัว
               </div>
               <div className="rounded-xl border border-border bg-card/70 px-4 py-3">
-                จัดการผู้ดูแล รายการยา และประวัติสุขภาพในที่เดียว
+                จัดการผู้ดูแล กิจวัตรประจำวัน และข้อมูลสุขภาพในที่เดียว
               </div>
             </div>
 

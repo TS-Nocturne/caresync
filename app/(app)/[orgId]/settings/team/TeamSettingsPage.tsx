@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { formatInviteCode } from "@/lib/invite-code";
 
 interface MemberRow {
   userId: string;
@@ -17,6 +18,7 @@ interface MemberRow {
 
 interface InviteRow {
   id: string;
+  token: string;
   url: string;
   portalRole: "CAREGIVER" | "FAMILY";
   status: string;
@@ -114,7 +116,7 @@ export default function TeamSettingsPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      setSuccess(`สร้างลิงก์เชิญ${portalRole === "CAREGIVER" ? "พยาบาล" : "ครอบครัว"}แล้ว — คัดลอกส่งทางไลน์ได้เลย`);
+      setSuccess(`สร้างลิงก์เชิญ${portalRole === "CAREGIVER" ? "ผู้ดูแล" : "ครอบครัว"}แล้ว — คัดลอกส่งทางไลน์ได้เลย`);
       await navigator.clipboard.writeText(json.data.url);
       setCopied(json.data.url);
       load();
@@ -181,6 +183,12 @@ export default function TeamSettingsPage() {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const copyCode = async (code: string) => {
+    await navigator.clipboard.writeText(code);
+    setCopied(code);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
   const connectLine = async () => {
     setLineConnecting(true);
     setLineError("");
@@ -198,12 +206,22 @@ export default function TeamSettingsPage() {
 
   return (
     <>
-      <main className="pt-24 pb-12 max-w-4xl mx-auto px-4 sm:px-6">
+      <main className="pt-24 pb-12 max-w-4xl mx-auto px-3 sm:px-6">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">จัดการทีม & ลิงก์เชิญ</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            เฉพาะเจ้าของห้องเท่านั้นที่เชิญและเพิกถอนสิทธิ์ — พยาบาลและครอบครัวสมัครฟรี ไม่ถูกเก็บเงิน
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">จัดการทีม & ลิงก์เชิญ</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                เฉพาะเจ้าของห้องเท่านั้นที่เชิญและเพิกถอนสิทธิ์ — ผู้ดูแลและครอบครัวสมัครฟรี ไม่ถูกเก็บเงิน
+              </p>
+            </div>
+            <Link
+              href="/onboarding?create=1"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-dark sm:w-auto"
+            >
+              + เพิ่มห้อง
+            </Link>
+          </div>
           <div className="flex gap-3 mt-4 text-sm">
             <Link href={`/${orgId}/dashboard`} className="text-muted-foreground hover:underline">
               ← กลับ Dashboard
@@ -229,16 +247,16 @@ export default function TeamSettingsPage() {
 
         <Link
           href={`/${orgId}/settings/billing`}
-          className="bg-card p-5 rounded-2xl border border-border hover:border-primary/40 transition-colors flex items-center gap-4 mb-6"
+          className="bg-card p-4 sm:p-5 rounded-2xl border border-border hover:border-primary/40 transition-colors flex flex-col gap-3 mb-6 min-[520px]:flex-row min-[520px]:items-center min-[520px]:gap-4"
         >
-          <span className="text-3xl">💳</span>
-          <div>
+          <span className="text-3xl leading-none">💳</span>
+          <div className="min-w-0">
             <h3 className="font-bold text-foreground">แผน & การชำระเงิน: {plan} ({memberCount} สมาชิก)</h3>
             <p className="text-sm text-muted-foreground">เฉพาะแอดมิน (เจ้าของแพลน) — อัปเกรดเพื่อเพิ่มสิทธิ์การเชิญสมาชิก</p>
           </div>
         </Link>
 
-        <section className="bg-card border border-border rounded-2xl p-6 mb-6">
+        <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold">บัญชี LINE</h2>
@@ -269,12 +287,12 @@ export default function TeamSettingsPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 dark:border-rose-900 dark:bg-rose-950/20">
+        <section className="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:p-5 dark:border-rose-900 dark:bg-rose-950/20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-rose-900 dark:text-rose-200">ลบห้องนี้</h2>
               <p className="mt-1 text-sm text-rose-700 dark:text-rose-300">
-                ห้องจะถูกปิดการใช้งาน และสมาชิกครอบครัว/พยาบาลจะเห็นว่าห้องนี้ถูกลบแล้ว
+                ห้องจะถูกปิดการใช้งาน และสมาชิกครอบครัว/ผู้ดูแลจะเห็นว่าห้องนี้ถูกลบแล้ว
               </p>
             </div>
             <button
@@ -282,14 +300,14 @@ export default function TeamSettingsPage() {
               onClick={() => {
                 setShowDeleteRoomModal(true);
               }}
-              className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
+              className="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 sm:w-auto sm:shrink-0"
             >
               ลบห้อง
             </button>
           </div>
         </section>
 
-        <section className="bg-card border border-border rounded-2xl p-6 mb-6">
+        <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">สร้างลิงก์เชิญ (Invite Link)</h2>
           <p className="text-sm text-muted-foreground mb-4">
             ส่งลิงก์ทางไลน์ — ผู้รับเชิญสร้างบัญชีฟรีแล้วเข้าเฉพาะหน้าที่กำหนด
@@ -301,7 +319,7 @@ export default function TeamSettingsPage() {
               onClick={() => createInvite("CAREGIVER")}
               className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary-dark disabled:opacity-50"
             >
-              {creating === "CAREGIVER" ? "..." : "👨‍⚕️ เชิญพยาบาล/ผู้ดูแล"}
+              {creating === "CAREGIVER" ? "..." : "👨‍💼 เชิญผู้ดูแล"}
             </button>
             <button
               type="button"
@@ -315,20 +333,30 @@ export default function TeamSettingsPage() {
         </section>
 
         {invites.length > 0 && (
-          <section className="bg-card border border-border rounded-2xl p-6 mb-6">
+          <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
             <h2 className="text-lg font-semibold mb-4">ลิงก์ที่สร้างแล้ว</h2>
             <div className="space-y-3">
               {invites.slice(0, 10).map((inv) => (
-                <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
+                <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">
-                      {inv.portalRole === "CAREGIVER" ? "พยาบาล" : "ครอบครัว"} — {inv.status}
+                      {inv.portalRole === "CAREGIVER" ? "ผู้ดูแล" : "ครอบครัว"} — {inv.status}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold tracking-wide text-foreground">
+                      รหัสเชิญ: <span className="font-mono">{formatInviteCode(inv.token)}</span>
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{inv.url}</p>
                   </div>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0">
                     {inv.status === "PENDING" && !inv.isExpired && (
                       <>
+                        <button
+                          type="button"
+                          onClick={() => copyCode(formatInviteCode(inv.token))}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted"
+                        >
+                          {copied === formatInviteCode(inv.token) ? "คัดลอกแล้ว!" : "คัดลอกโค้ด"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => copyLink(inv.url)}
@@ -352,13 +380,13 @@ export default function TeamSettingsPage() {
           </section>
         )}
 
-        <section className="bg-card border border-border rounded-2xl p-6">
+        <section className="bg-card border border-border rounded-2xl p-4 sm:p-6">
           <h2 className="text-lg font-semibold mb-4">สมาชิกในห้อง</h2>
           <div className="space-y-3">
             {members.map((m) => (
               <div
                 key={m.userId}
-                className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border"
+                className="flex flex-col gap-3 p-4 rounded-xl border border-border min-[520px]:flex-row min-[520px]:items-center min-[520px]:justify-between min-[520px]:gap-4"
               >
                 <div>
                   <p className="font-medium text-sm">{m.name}</p>
@@ -370,7 +398,7 @@ export default function TeamSettingsPage() {
                     type="button"
                     onClick={() => setMemberToRevoke(m)}
                     disabled={revokingMemberId !== null}
-                    className="text-xs px-3 py-1.5 rounded-lg text-rose-600 border border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30 shrink-0"
+                    className="w-full text-xs px-3 py-1.5 rounded-lg text-rose-600 border border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/30 min-[520px]:w-auto min-[520px]:shrink-0"
                   >
                     {revokingMemberId === m.userId ? "กำลังเพิกถอน..." : "เพิกถอนสิทธิ์"}
                   </button>
@@ -383,12 +411,12 @@ export default function TeamSettingsPage() {
 
       {showDeleteRoomModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-room-title"
         >
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in">
             <div className="mb-5 flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                 !
@@ -399,7 +427,7 @@ export default function TeamSettingsPage() {
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   คุณกำลังจะลบห้อง <span className="font-semibold text-foreground">{organizationName}</span>{" "}
-                  สมาชิกครอบครัวและพยาบาลจะเห็นว่าห้องนี้ถูกลบแล้ว และสามารถเอาห้องออกจากเมนูของตัวเองได้
+                  สมาชิกครอบครัวและผู้ดูแลจะเห็นว่าห้องนี้ถูกลบแล้ว และสามารถเอาห้องออกจากเมนูของตัวเองได้
                 </p>
               </div>
             </div>
@@ -431,12 +459,12 @@ export default function TeamSettingsPage() {
 
       {memberToRevoke && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="revoke-member-title"
         >
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-fade-in">
             <div className="mb-5 flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
                 !

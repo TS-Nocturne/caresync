@@ -16,7 +16,7 @@ export default function MedicalDisclaimer({
     <div className={`rounded-xl border ${classes} ${compact ? "px-3 py-2 text-xs" : "p-4 text-sm"}`}>
       <p className="font-medium">ข้อมูลนี้ใช้เพื่อการบันทึก ติดตาม และประสานงานการดูแลเท่านั้น</p>
       <p className={compact ? "mt-1" : "mt-2"}>
-        CareSync ไม่ได้วินิจฉัยโรค สั่งการรักษา ปรับยา หรือแทนการประเมินจากบุคลากรทางการแพทย์
+        CareSync ไม่ใช่แพลตฟอร์มทางการแพทย์ ไม่ได้มีไว้สำหรับรักษาโรค หรือแทนการดูแลโดยตรง
         หากสงสัยภาวะฉุกเฉินให้ติดต่อบริการฉุกเฉินหรือผู้เชี่ยวชาญโดยตรง
       </p>
     </div>

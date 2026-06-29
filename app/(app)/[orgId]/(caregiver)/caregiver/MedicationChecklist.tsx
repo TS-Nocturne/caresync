@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getTheme, subscribeTheme } from "@/lib/theme";
@@ -27,6 +27,10 @@ interface Medication {
   appearance?: string | null;
   status: "PENDING" | "GIVEN" | "SKIPPED";
   signatureUrl?: string | null;
+  selfAdministered?: boolean;
+  skipReason?: "FAMILY_GIVEN" | "PATIENT_SELF_ADMINISTERED" | "OTHER" | null;
+  handledByName?: string | null;
+  handledByRole?: "FAMILY" | "CAREGIVER" | "PATIENT" | string | null;
 }
 
 interface MedicationWindow {
@@ -35,6 +39,8 @@ interface MedicationWindow {
   start: string;
   end: string;
 }
+
+type EvidenceSkipReason = "FAMILY_GIVEN" | "PATIENT_SELF_ADMINISTERED";
 
 const statusConfig = {
   PENDING: {
@@ -177,15 +183,24 @@ export default function MedicationChecklist({
   orgId,
   patientId,
   onMedsChange,
+  mode = "caregiver",
+  onAfterChange,
 }: {
   orgId: string;
   patientId: string | null;
   onMedsChange?: (meds: Medication[]) => void;
+  mode?: "caregiver" | "family";
+  onAfterChange?: () => void;
 }) {
   const [meds, setMeds] = useState<Medication[]>([]);
   const [prnMeds, setPrnMeds] = useState<Medication[]>([]);
   const [loading, setLoading] = useState(true);
   const [signingId, setSigningId] = useState<string | null>(null);
+  const [skippingId, setSkippingId] = useState<string | null>(null);
+  const [pendingEvidenceSkip, setPendingEvidenceSkip] = useState<{
+    id: string;
+    reason: EvidenceSkipReason;
+  } | null>(null);
   const [error, setError] = useState("");
   const [windowInfo, setWindowInfo] = useState<MedicationWindow | null>(null);
 
@@ -246,11 +261,17 @@ export default function MedicationChecklist({
     };
   }, [orgId, patientId, onMedsChange]);
 
-  const updateMed = async (id: string, status: "GIVEN" | "SKIPPED", signatureUrl?: string) => {
+  const updateMed = async (
+    id: string,
+    status: "GIVEN" | "SKIPPED",
+    signatureUrl?: string,
+    skipReason?: Medication["skipReason"],
+    evidenceVerified = false
+  ) => {
     const res = await fetch("/api/medications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, medicationId: id, status, signatureUrl }),
+      body: JSON.stringify({ orgId, medicationId: id, status, signatureUrl, skipReason, evidenceVerified }),
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "บันทึกยาไม่สำเร็จ");
@@ -260,6 +281,7 @@ export default function MedicationChecklist({
       return next;
     });
     setPrnMeds((current) => current.map((m) => (m.id === id ? json.data : m)));
+    onAfterChange?.();
   };
 
   const confirmGive = async (id: string, sigData: string) => {
@@ -271,27 +293,51 @@ export default function MedicationChecklist({
     }
   };
 
-  const skipMed = async (id: string) => {
+  const giveWithoutSignature = async (id: string) => {
     try {
-      await updateMed(id, "SKIPPED");
+      await updateMed(id, "GIVEN");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save medication failed");
+    }
+  };
+
+  const skipMed = async (id: string, reason: Medication["skipReason"] = "OTHER") => {
+    try {
+      const evidenceVerified = reason === "FAMILY_GIVEN" || reason === "PATIENT_SELF_ADMINISTERED";
+      await updateMed(id, "SKIPPED", undefined, reason, evidenceVerified);
+      setSkippingId(null);
+      setPendingEvidenceSkip(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "บันทึกยาไม่สำเร็จ");
     }
   };
 
-  const givenCount = meds.filter((m) => m.status === "GIVEN").length;
-  const pendingCount = meds.filter((m) => m.status === "PENDING").length;
+  const requestEvidenceSkip = (id: string, reason: EvidenceSkipReason) => {
+    setPendingEvidenceSkip({ id, reason });
+  };
+
+  const requiredMeds = meds.filter((m) => !m.selfAdministered);
+  const givenCount = requiredMeds.filter((m) => m.status !== "PENDING").length;
+  const pendingCount = requiredMeds.filter((m) => m.status === "PENDING").length;
   const medicationDoseText = (med: Medication) =>
     med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage;
+  const title =
+    mode === "family"
+      ? "บันทึกการให้ยาประจำวัน"
+      : "Medication Checklist & ลายเซ็นดิจิทัล";
+  const description =
+    mode === "family"
+      ? "เพื่อการดูแลที่ต่อเนื่องและปลอดภัย"
+      : "ติ๊กจ่ายยาและเซ็นชื่อก่อนกดบันทึกข้อมูลทั้งหมด — หลักฐานสำหรับการเบิกจ่ายและทางกฎหมาย";
 
   return (
     <div className="glass-card p-5 animate-fade-in border-2 border-primary/10">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl">💊</span>
-        <h2 className="text-lg font-semibold">Medication Checklist & ลายเซ็นดิจิทัล</h2>
+      <div className="flex items-start gap-2 mb-2">
+        <span className="text-xl leading-none">💊</span>
+        <h2 className="text-lg font-semibold">{title}</h2>
       </div>
       <p className="text-xs text-muted-foreground mb-5">
-        ติ๊กจ่ายยาและเซ็นชื่อก่อนกดบันทึกข้อมูลทั้งหมด — หลักฐานสำหรับการเบิกจ่ายและทางกฎหมาย
+        {description}
       </p>
       {windowInfo && (
         <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
@@ -308,7 +354,7 @@ export default function MedicationChecklist({
       {loading ? (
         <p className="text-sm text-muted-foreground py-6 text-center">กำลังโหลดรายการยา...</p>
       ) : !patientId ? (
-        <p className="text-sm text-muted-foreground py-6 text-center">ไม่พบผู้ป่วย</p>
+        <p className="text-sm text-muted-foreground py-6 text-center">ไม่พบผู้สูงอายุ</p>
       ) : meds.length === 0 && prnMeds.length === 0 ? (
         <p className="text-sm text-muted-foreground py-6 text-center">
           {windowInfo
@@ -319,7 +365,7 @@ export default function MedicationChecklist({
         <>
           {meds.length > 0 && (
             <>
-              <div className="flex items-center justify-between mb-3 text-xs font-medium">
+              <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between mb-3 text-xs font-medium">
                 <span className="text-muted-foreground">
                   ให้แล้ว {givenCount}/{meds.length}
                 </span>
@@ -352,7 +398,7 @@ export default function MedicationChecklist({
                 return (
                   <div key={med.id}>
                     <div className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg} transition-all`}>
-                      <div className="flex items-start gap-3">
+                      <div className="flex flex-col gap-3 min-[520px]:flex-row min-[520px]:items-start">
                         <div
                           className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 mt-0.5 ${
                             med.status === "GIVEN"
@@ -393,20 +439,20 @@ export default function MedicationChecklist({
                           )}
                         </div>
                         {med.status === "PENDING" && (
-                          <div className="flex gap-1.5 shrink-0">
+                          <div className="grid w-full grid-cols-1 gap-1.5 min-[420px]:grid-cols-2 min-[520px]:w-auto min-[520px]:shrink-0">
                             <button
                               type="button"
-                              onClick={() => setSigningId(med.id)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                              onClick={() => mode === "family" ? giveWithoutSignature(med.id) : setSigningId(med.id)}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
                             >
-                              ให้ยา + เซ็น
+                              {mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
                             </button>
                             <button
                               type="button"
-                              onClick={() => skipMed(med.id)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                              onClick={() => mode === "family" ? requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED") : setSkippingId(med.id)}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
                             >
-                              ข้าม
+                              {mode === "family" ? "ผู้สูงอายุทานเองแล้ว" : "ข้าม"}
                             </button>
                           </div>
                         )}
@@ -420,6 +466,25 @@ export default function MedicationChecklist({
                         />
                       </div>
                     )}
+                    {skippingId === med.id && (
+                      <div className="mt-2 rounded-xl border border-border bg-card p-3">
+                        <p className="mb-2 text-xs font-medium text-muted-foreground">เลือกเหตุผลการข้าม</p>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white">
+                            ญาติให้ยาแล้ว
+                          </button>
+                          <button type="button" onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white">
+                            ผู้สูงอายุทานเองแล้ว
+                          </button>
+                          <button type="button" onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                            ข้ามอื่นๆ
+                          </button>
+                          <button type="button" onClick={() => setSkippingId(null)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                            ยกเลิก
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -427,7 +492,7 @@ export default function MedicationChecklist({
           )}
           {prnMeds.length > 0 && (
             <div className="mt-5 border-t border-border pt-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                 <h3 className="text-sm font-semibold">ยาตามอาการ (PRN)</h3>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                   ไม่บังคับจบกะ
@@ -438,7 +503,7 @@ export default function MedicationChecklist({
                   const cfg = statusConfig[med.status];
                   return (
                     <div key={med.id} className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg}`}>
-                      <div className="flex items-start gap-3">
+                      <div className="flex flex-col gap-3 min-[520px]:flex-row min-[520px]:items-start">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-sm">
@@ -463,20 +528,20 @@ export default function MedicationChecklist({
                           )}
                         </div>
                         {med.status === "PENDING" && (
-                          <div className="flex gap-1.5 shrink-0">
+                          <div className="grid w-full grid-cols-1 gap-1.5 min-[420px]:grid-cols-2 min-[520px]:w-auto min-[520px]:shrink-0">
                             <button
                               type="button"
-                              onClick={() => setSigningId(med.id)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                              onClick={() => mode === "family" ? giveWithoutSignature(med.id) : setSigningId(med.id)}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
                             >
-                              ให้ยา + เซ็น
+                              {mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
                             </button>
                             <button
                               type="button"
-                              onClick={() => skipMed(med.id)}
-                              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                              onClick={() => mode === "family" ? requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED") : setSkippingId(med.id)}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
                             >
-                              ข้าม
+                              {mode === "family" ? "ผู้สูงอายุทานเองแล้ว" : "ข้าม"}
                             </button>
                           </div>
                         )}
@@ -489,6 +554,25 @@ export default function MedicationChecklist({
                           />
                         </div>
                       )}
+                      {skippingId === med.id && (
+                        <div className="mt-2 rounded-xl border border-border bg-card p-3">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">เลือกเหตุผลการข้าม</p>
+                          <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white">
+                              ญาติให้ยาแล้ว
+                            </button>
+                            <button type="button" onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white">
+                              ผู้สูงอายุทานเองแล้ว
+                            </button>
+                            <button type="button" onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                              ข้ามอื่นๆ
+                            </button>
+                            <button type="button" onClick={() => setSkippingId(null)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                              ยกเลิก
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -496,6 +580,33 @@ export default function MedicationChecklist({
             </div>
           )}
         </>
+      )}
+      {pendingEvidenceSkip && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/45 px-4 py-6">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
+            <h3 className="text-base font-semibold">โปรดตรวจสอบหลักฐาน</h3>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              เพื่อความปลอดภัย กรุณาตรวจสอบซองยา หรือตลับยาประจำวัน ให้แน่ใจว่ายาหายไปแล้วจริง
+              ก่อนกดยืนยันว่าผู้สูงอายุทานเองแล้วหรือมีคนในครอบครัวจัดการให้แล้ว
+            </p>
+            <div className="mt-5 grid gap-2 min-[420px]:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPendingEvidenceSkip(null)}
+                className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => skipMed(pendingEvidenceSkip.id, pendingEvidenceSkip.reason)}
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+              >
+                ยืนยัน ยาถูกทานแล้ว
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-# CareSync - Patient Care SaaS
+﻿# CareSync - Patient Care SaaS
 
 แพลตฟอร์มบริหารจัดการศูนย์ดูแลผู้สูงอายุแบบ multi-tenant พร้อม Caregiver Portal, Family Portal และ Alert Center
 
@@ -59,7 +59,7 @@ npm run dev
 
 | Endpoint | Method | Description |
 | --- | --- | --- |
-| `/api/patients?orgId=` | GET | รายชื่อผู้ป่วยพร้อมสถานะ |
+| `/api/patients?orgId=` | GET | รายชื่อผู้สูงอายุพร้อมสถานะ |
 | `/api/vitals?orgId=&patientId=` | GET | ประวัติสัญญาณชีพ |
 | `/api/vitals` | POST | บันทึกสัญญาณชีพและสร้าง alert อัตโนมัติ |
 

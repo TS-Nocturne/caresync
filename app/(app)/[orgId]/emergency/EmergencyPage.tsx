@@ -115,7 +115,7 @@ export default function EmergencyPage() {
       ? overview.statusMessage
       : overview?.vitals
         ? `${patientName} อยู่ในสถานะปกติ — ยาที่ให้แล้ว ${overview.medications.given}/${overview.medications.total} รายการ`
-        : `ยังไม่มีสัญญาณชีพล่าสุดของ ${patientName} ในระบบ`;
+        : `ยังไม่มีค่าสถิติร่างกายล่าสุดของ ${patientName} ในระบบ`;
 
   const triggerPanic = async () => {
     if (!overview?.patient || panicLoading) return;

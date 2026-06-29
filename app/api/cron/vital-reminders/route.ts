@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const title = "ถึงรอบบันทึกสัญญาณชีพ";
+      const title = "ถึงรอบบันทึกค่าสถิติร่างกาย";
       const body = reminderMessage(`${patient.firstName} ${patient.lastName}`, round.label);
 
       await prisma.alert.create({

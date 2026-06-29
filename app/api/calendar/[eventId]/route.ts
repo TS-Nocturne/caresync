@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth-server";
 import { getPortalAccess, requirePatientAccess } from "@/lib/workspace-access";
-import { canEditOrDeleteEvent, canClaimEvent } from "@/lib/calendar-permissions";
+import { canEditOrDeleteEvent, canClaimEvent, canCreateEvent } from "@/lib/calendar-permissions";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 import type { EventType } from "@prisma/client";
 import { requireWritableSubscription } from "@/lib/subscriptions";
@@ -93,6 +93,9 @@ export async function PUT(request: Request, props: { params: Promise<{ eventId: 
     if (body.type !== undefined) {
       if (!EVENT_TYPES.includes(body.type)) {
         return NextResponse.json({ error: "Invalid event type" }, { status: 400 });
+      }
+      if (!canCreateEvent(access, body.type)) {
+        return NextResponse.json({ error: "Forbidden event type" }, { status: 403 });
       }
       updateData.type = body.type;
     }

@@ -17,7 +17,7 @@ interface InvitePreview {
 }
 
 const roleLabels = {
-  CAREGIVER: "พยาบาล / ผู้ดูแล",
+  CAREGIVER: "ผู้ดูแล",
   FAMILY: "ครอบครัว",
 };
 

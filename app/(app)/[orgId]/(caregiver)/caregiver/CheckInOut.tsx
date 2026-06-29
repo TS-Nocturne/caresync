@@ -1,11 +1,76 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
+import { useParams } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
+
+interface AttendanceState {
+  checkedIn: boolean;
+  checkInAt: string | null;
+}
+
+function formatCheckInTime(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleTimeString("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function readAttendanceSnapshot(storageKey: string | null) {
+  if (!storageKey || typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    return window.localStorage.getItem(storageKey) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function parseAttendanceSnapshot(snapshot: string): AttendanceState {
+  if (!snapshot) {
+    return { checkedIn: false, checkInAt: null };
+  }
+
+  try {
+    const parsed = JSON.parse(snapshot) as AttendanceState;
+    return {
+      checkedIn: Boolean(parsed.checkedIn),
+      checkInAt: parsed.checkInAt,
+    };
+  } catch {
+    return { checkedIn: false, checkInAt: null };
+  }
+}
 
 export default function CheckInOut() {
-  const [checkedIn, setCheckedIn] = useState(false);
-  const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const params = useParams();
+  const orgId = params.orgId as string;
+  const { data: session, isPending } = useSession();
+  const storageKey =
+    !isPending && session?.user?.id
+      ? `patient-care:attendance:${orgId}:${session.user.id}`
+      : null;
   const [currentTime, setCurrentTime] = useState("");
+  const attendanceSnapshot = useSyncExternalStore(
+    (onStoreChange) => {
+      window.addEventListener("storage", onStoreChange);
+      window.addEventListener("patient-care-attendance-change", onStoreChange);
+
+      return () => {
+        window.removeEventListener("storage", onStoreChange);
+        window.removeEventListener("patient-care-attendance-change", onStoreChange);
+      };
+    },
+    () => readAttendanceSnapshot(storageKey),
+    () => ""
+  );
+  const attendance = parseAttendanceSnapshot(attendanceSnapshot);
 
   useEffect(() => {
     const update = () => {
@@ -22,19 +87,29 @@ export default function CheckInOut() {
     return () => clearInterval(interval);
   }, []);
 
+  const saveAttendanceState = (state: AttendanceState) => {
+    if (!storageKey) return;
+
+    if (state.checkedIn) {
+      window.localStorage.setItem(storageKey, JSON.stringify(state));
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+
+    window.dispatchEvent(new Event("patient-care-attendance-change"));
+  };
+
   const handleCheckIn = () => {
-    const now = new Date().toLocaleTimeString("th-TH", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setCheckedIn(true);
-    setCheckInTime(now);
+    const now = new Date().toISOString();
+    saveAttendanceState({ checkedIn: true, checkInAt: now });
   };
 
   const handleCheckOut = () => {
-    setCheckedIn(false);
-    setCheckInTime(null);
+    saveAttendanceState({ checkedIn: false, checkInAt: null });
   };
+
+  const checkedIn = attendance.checkedIn;
+  const checkInTime = formatCheckInTime(attendance.checkInAt);
 
   return (
     <div className="glass-card p-5 animate-fade-in">
@@ -52,7 +127,7 @@ export default function CheckInOut() {
         {/* Check In */}
         <button
           onClick={handleCheckIn}
-          disabled={checkedIn}
+          disabled={!storageKey || checkedIn}
           className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all duration-300 ${
             checkedIn
               ? "border-status-ok bg-status-ok-bg cursor-default"
@@ -87,7 +162,7 @@ export default function CheckInOut() {
         {/* Check Out */}
         <button
           onClick={handleCheckOut}
-          disabled={!checkedIn}
+          disabled={!storageKey || !checkedIn}
           className={`relative flex flex-col items-center gap-3 p-6 rounded-xl border-2 transition-all duration-300 ${
             !checkedIn
               ? "border-dashed border-border text-muted-foreground/50 cursor-not-allowed"

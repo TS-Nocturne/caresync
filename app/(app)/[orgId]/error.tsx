@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import Link from "next/link";
@@ -29,7 +29,7 @@ export default function OrgError({
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-3">ระบบขัดข้องชั่วคราว</h2>
         <p className="text-muted-foreground mb-8">
-          เกิดข้อผิดพลาดในการโหลดข้อมูลห้องดูแลผู้ป่วย กรุณาลองใหม่อีกครั้ง
+          เกิดข้อผิดพลาดในการโหลดข้อมูลห้องดูแลผู้สูงอายุ กรุณาลองใหม่อีกครั้ง
           {process.env.NODE_ENV === "development" && (
             <span className="block mt-2 text-xs text-rose-500 text-left bg-rose-50 p-2 rounded break-all">
               {error.message}

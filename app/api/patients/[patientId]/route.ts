@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireOrgMembership } from "@/lib/auth-server";
 import { syncPatientContextToPinecone } from "@/lib/patient-context-sync";
@@ -42,6 +42,7 @@ function medicationRows(orgId: string, patientId: string, medications: PatientRe
     indication: string | null;
     appearance: string | null;
     instruction: string | null;
+    selfAdministered: boolean;
   }> = [];
 
   for (const med of medications ?? []) {
@@ -70,6 +71,7 @@ function medicationRows(orgId: string, patientId: string, medications: PatientRe
         indication: sanitizeText(med.indication, 200) || null,
         appearance: sanitizeText(med.appearance, 200) || null,
         instruction: sanitizeText(med.instruction, 500) || null,
+        selfAdministered: med.selfAdministered ?? false,
       });
     }
   }
@@ -165,6 +167,7 @@ export async function GET(request: Request, context: { params: Promise<{ patient
                 indication: med.indication ?? "",
                 appearance: med.appearance ?? "",
                 instruction: med.instruction ?? "",
+                selfAdministered: med.selfAdministered,
               }))
             : [{
                 name: "",
@@ -179,6 +182,7 @@ export async function GET(request: Request, context: { params: Promise<{ patient
                 indication: "",
                 appearance: "",
                 instruction: "",
+                selfAdministered: false,
               }],
           preferredHospital: patient.preferredHospital ?? "",
           hospitalNumber: patient.hospitalNumber ?? "",
@@ -280,7 +284,7 @@ export async function PUT(request: Request, context: { params: Promise<{ patient
           organizationId: body.orgId,
           patientId,
           type: "SYSTEM_NOTE",
-          title: "แก้ไขข้อมูลผู้ป่วย",
+          title: "แก้ไขข้อมูลผู้สูงอายุ",
           description: `${sanitizeText(body.firstName, 120)} ${sanitizeText(body.lastName, 120)} — profile updated`,
           userId: session.user.id,
         },
@@ -301,7 +305,7 @@ export async function PUT(request: Request, context: { params: Promise<{ patient
 
     return NextResponse.json({
       data: patient,
-      message: "แก้ไขข้อมูลผู้ป่วยสำเร็จ",
+      message: "แก้ไขข้อมูลผู้สูงอายุสำเร็จ",
     });
   } catch (error) {
     return apiError(error, "Failed to update patient");

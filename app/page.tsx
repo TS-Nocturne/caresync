@@ -6,7 +6,7 @@ import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 
 export const metadata: Metadata = {
   title: "CareSync — ระบบดูแลผู้สูงอายุอัจฉริยะแบบครบวงจร",
-  description: "แพลตฟอร์มดูแลผู้สูงอายุสำหรับครอบครัว รองรับการบันทึกและแสดงข้อมูลสุขภาพเพื่อประกอบการติดตามอาการแบบ 24/7",
+  description: "แพลตฟอร์มดูแลผู้สูงอายุสำหรับครอบครัว รองรับการบันทึกและแสดงข้อมูลสุขภาพเพื่อประกอบการดูแลแบบ 24/7",
 };
 
 export default function MarketingPage() {
@@ -24,11 +24,14 @@ export default function MarketingPage() {
           Shared care workspace for <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-emerald-500">modern eldercare</span>
         </h1>
         <p className="text-base sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: "200ms" }}>
-          รวมบันทึกการดูแล สัญญาณชีพ งานประจำวัน และการสื่อสารของครอบครัวไว้ในพื้นที่เดียว โดยให้ผู้ดูแลเป็นผู้ตรวจสอบและตัดสินใจเสมอ
+          รวมบันทึกการดูแล ค่าสถิติร่างกาย งานประจำวัน และการสื่อสารของครอบครัวไว้ในพื้นที่เดียว โดยให้ผู้ดูแลเป็นผู้ตรวจสอบและตัดสินใจเสมอ
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: "300ms" }}>
           <Link href="/signup" className="w-full sm:w-auto px-8 py-4 bg-primary text-white text-lg font-semibold rounded-full hover:bg-primary-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-1">
             Get Started for Free
+          </Link>
+          <Link href="/invite" className="w-full sm:w-auto px-8 py-4 border border-border text-foreground text-lg font-semibold rounded-full hover:bg-muted transition-all">
+            Join with Code
           </Link>
         </div>
       </main>
@@ -45,7 +48,7 @@ export default function MarketingPage() {
             <div className="p-6 rounded-2xl bg-muted border border-border">
               <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center text-2xl mb-4">🩺</div>
               <h3 className="text-xl font-bold text-foreground mb-2">Caregiver Dashboard</h3>
-              <p className="text-muted-foreground">บันทึกสัญญาณชีพ, ลายเซ็นดิจิทัลรับยา, และ Pain Body Map ที่ใช้งานง่ายลดข้อผิดพลาด</p>
+              <p className="text-muted-foreground">บันทึกค่าสถิติร่างกาย, บันทึกการทำกิจวัตร, และบันทึกความไม่สบายตัว ที่ใช้งานง่ายลดข้อผิดพลาด</p>
             </div>
             <div className="p-6 rounded-2xl bg-muted border border-border">
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-2xl mb-4">👨‍👩‍👧‍👦</div>

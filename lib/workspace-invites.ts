@@ -1,9 +1,28 @@
-import type { PortalRole } from "@prisma/client";
+﻿import type { PortalRole } from "@prisma/client";
+import { randomBytes } from "crypto";
 import { prisma } from "./prisma";
 import { canAddMember, canCreateInvite } from "./subscription-limits";
 import { requireWritableSubscription } from "./subscriptions";
+import { formatInviteCode, normalizeInviteCode } from "./invite-code";
 
 const INVITE_TTL_DAYS = 7;
+const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+async function generateUniqueInviteToken() {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const bytes = randomBytes(8);
+    let code = "";
+    for (const byte of bytes) {
+      code += INVITE_CODE_ALPHABET[byte % INVITE_CODE_ALPHABET.length];
+    }
+
+    const token = formatInviteCode(code);
+    const existing = await prisma.workspaceInvite.findUnique({ where: { token } });
+    if (!existing) return token;
+  }
+
+  throw new Error("สร้างรหัสเชิญไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+}
 
 export async function getOrgSubscription(orgId: string) {
   return prisma.subscription.findUnique({ where: { organizationId: orgId } });
@@ -52,7 +71,7 @@ export async function createWorkspaceInvite({
       : await prisma.patient.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "asc" } });
 
   if (!patient) {
-    throw new Error("ยังไม่มีผู้ป่วยใน workspace — เพิ่มผู้ป่วยก่อนสร้างลิงก์เชิญ");
+    throw new Error("ยังไม่มีผู้สูงอายุใน workspace — เพิ่มผู้สูงอายุก่อนสร้างลิงก์เชิญ");
   }
 
   const expiresAt = new Date();
@@ -61,6 +80,7 @@ export async function createWorkspaceInvite({
   return prisma.workspaceInvite.create({
     data: {
       organizationId: orgId,
+      token: await generateUniqueInviteToken(),
       portalRole,
       patientId: patient.id,
       relationLabel: relationLabel ?? null,
@@ -73,11 +93,43 @@ export async function createWorkspaceInvite({
   });
 }
 
+export async function findWorkspaceInviteByToken(token: string) {
+  const decodedToken = safeDecodeURIComponent(token);
+  const candidates = Array.from(
+    new Set([
+      token,
+      decodedToken,
+      formatInviteCode(token),
+      formatInviteCode(decodedToken),
+      normalizeInviteCode(token),
+      normalizeInviteCode(decodedToken),
+    ].filter(Boolean))
+  );
+
+  for (const candidate of candidates) {
+    const invite = await prisma.workspaceInvite.findUnique({
+      where: { token: candidate },
+      include: {
+        organization: true,
+        createdBy: { select: { name: true } },
+      },
+    });
+    if (invite) return invite;
+  }
+
+  return null;
+}
+
+function safeDecodeURIComponent(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export async function acceptWorkspaceInvite(token: string, userId: string) {
-  const invite = await prisma.workspaceInvite.findUnique({
-    where: { token },
-    include: { organization: true },
-  });
+  const invite = await findWorkspaceInviteByToken(token);
 
   if (!invite || invite.status !== "PENDING") {
     throw new Error("ลิงก์เชิญไม่ถูกต้องหรือถูกใช้แล้ว");
@@ -115,7 +167,7 @@ export async function acceptWorkspaceInvite(token: string, userId: string) {
       })
     )?.id;
 
-  if (!patientId) throw new Error("ไม่พบผู้ป่วยใน workspace");
+  if (!patientId) throw new Error("ไม่พบผู้สูงอายุใน workspace");
 
   await prisma.$transaction(async (tx) => {
     if (!existingMember) {

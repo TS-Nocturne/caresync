@@ -19,8 +19,8 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
   const filteredLogs = filter === "all" ? logs : logs.filter((l) => l.type === filter);
 
   return (
-    <div className="glass-card p-5 animate-fade-in h-full">
-      <div className="flex items-center justify-between mb-5">
+    <div className="glass-card p-4 sm:p-5 animate-fade-in h-full">
+      <div className="flex flex-col gap-2 mb-5 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl">📋</span>
           <h2 className="text-lg font-semibold">บันทึกกิจกรรม</h2>
@@ -41,7 +41,7 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
           onClick={() => setFilter("vital")}
           className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${filter === "vital" ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground hover:bg-blue-100 dark:hover:bg-blue-900/30"}`}
         >
-          สัญญาณชีพ
+          ค่าสถิติร่างกาย
         </button>
         <button
           type="button"
@@ -77,7 +77,7 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
             return (
               <div
                 key={log.id}
-                className="relative flex items-start justify-between md:justify-normal md:odd:flex-row-reverse group"
+                className="relative flex items-start gap-3 md:justify-normal md:gap-0 md:odd:flex-row-reverse group"
               >
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-card shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ${config.bg} z-10 transition-transform group-hover:scale-110`}
@@ -85,8 +85,8 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
                   <span className="text-sm">{config.icon}</span>
                 </div>
 
-                <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border bg-card shadow-sm group-hover:shadow-md group-hover:border-primary/30 transition-all">
-                  <div className="flex items-center justify-between mb-1">
+                <div className="w-full p-3 sm:p-4 md:w-[calc(50%-2.5rem)] rounded-xl border border-border bg-card shadow-sm group-hover:shadow-md group-hover:border-primary/30 transition-all">
+                  <div className="flex flex-col gap-1 mb-1 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                     <span className={`text-xs font-bold ${config.color}`}>{log.title}</span>
                     <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                       {new Date(log.time).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}

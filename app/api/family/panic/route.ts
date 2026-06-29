@@ -96,7 +96,7 @@ export async function POST(request: Request) {
       aiSummary += "\n\n📋 [Care Summary] สรุปข้อมูลย้อนหลัง 24 ชม.:";
       if (recentVitals.length > 0) {
         const v = recentVitals[0];
-        aiSummary += `\n- สัญญาณชีพล่าสุด: BP ${v.systolic}/${v.diastolic}, HR ${v.heartRate}, Temp ${v.temperature}°C, SpO2 ${v.oxygenSat}%`;
+        aiSummary += `\n- ค่าสถิติร่างกายล่าสุด: BP ${v.systolic}/${v.diastolic}, HR ${v.heartRate}, Temp ${v.temperature}°C, SpO2 ${v.oxygenSat}%`;
       }
       if (recentLogs.length > 0) {
         aiSummary += "\n- เหตุการณ์ล่าสุด:";

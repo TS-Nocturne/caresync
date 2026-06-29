@@ -40,6 +40,13 @@ export default function CurrentStatus({
   const measuredLabel = vitals?.measuredAt
     ? `วัดล่าสุด ${formatMeasuredAt(vitals.measuredAt)}`
     : "ยังไม่มีการวัด";
+  const recordedByLabel = vitals?.recordedByRole
+    ? vitals.recordedByRole === "FAMILY"
+      ? "บันทึกโดยครอบครัว"
+      : vitals.recordedByRole === "CAREGIVER"
+        ? "บันทึกโดยผู้ดูแล"
+        : `บันทึกโดย ${vitals.recordedByRole}`
+    : null;
 
   const bpValue =
     vitals?.systolic != null && vitals?.diastolic != null
@@ -75,18 +82,18 @@ export default function CurrentStatus({
   return (
     <div className="animate-fade-in space-y-4">
       {/* Sticky Banner area */}
-      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${statusBg[status]} p-6 text-white shadow-lg`}>
+      <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${statusBg[status]} p-4 sm:p-6 text-white shadow-lg`}>
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/20" />
           <div className="absolute -left-6 -bottom-6 h-32 w-32 rounded-full bg-white/10" />
         </div>
         <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-3xl">
+            <div className="flex items-start gap-3 mb-2">
+              <span className="text-2xl leading-none sm:text-3xl">
                 {status === "ok" ? "💚" : status === "warning" ? "💛" : "❤️‍🔥"}
               </span>
-              <h2 className="text-2xl font-bold">{statusLabel[status]}</h2>
+              <h2 className="text-xl font-bold leading-tight sm:text-2xl">{statusLabel[status]}</h2>
             </div>
             <p className="text-white/80 text-sm">
               {overview?.statusMessage ?? "กำลังโหลดข้อมูลสถานะ..."}
@@ -98,7 +105,7 @@ export default function CurrentStatus({
                 {canManageAlerts ? (
                   <button
                     onClick={() => setIsModalOpen(true)}
-                    className="inline-flex items-center justify-center rounded-full bg-white text-rose-600 px-6 py-2.5 text-sm font-bold shadow-sm hover:bg-rose-50 transition-colors"
+                    className="inline-flex w-full items-center justify-center rounded-full bg-white text-rose-600 px-4 py-2.5 text-sm font-bold shadow-sm hover:bg-rose-50 transition-colors min-[420px]:w-auto min-[420px]:px-6"
                   >
                     บันทึกผลการตรวจสอบ / ปิดรายการแจ้งเตือน
                   </button>
@@ -123,8 +130,8 @@ export default function CurrentStatus({
 
       {/* Quick Note Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border p-6 animate-slide-up relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border p-5 sm:p-6 animate-slide-up relative">
             <button 
               onClick={() => setIsModalOpen(false)}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
@@ -174,7 +181,7 @@ export default function CurrentStatus({
               ))}
             </div>
 
-            <div className="flex gap-3 justify-end">
+            <div className="grid gap-2 min-[420px]:flex min-[420px]:justify-end min-[420px]:gap-3">
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
@@ -202,7 +209,7 @@ export default function CurrentStatus({
       )}
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           label="ความดัน"
           value={bpValue}
@@ -253,21 +260,21 @@ export default function CurrentStatus({
         />
       </div>
 
-      <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary text-xl">
+      <div className="flex flex-col gap-4 p-4 rounded-xl bg-card border border-border min-[520px]:flex-row min-[520px]:items-center">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xl">
           🩺
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <p className="font-semibold text-sm">
             {overview?.caregiver?.name ? `พยาบาล ${overview.caregiver.name}` : "ยังไม่มีผู้ดูแลประจำ"}
           </p>
           <p className="text-xs text-muted-foreground">
             {vitals?.measuredAt
-              ? `บันทึกล่าสุด ${formatMeasuredAt(vitals.measuredAt)} น.`
+              ? `บันทึกล่าสุด ${formatMeasuredAt(vitals.measuredAt)} น.${recordedByLabel ? ` · ${recordedByLabel}` : ""}`
               : "รอการบันทึกจากทีมดูแล"}
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-left min-[520px]:text-right">
           <p className="text-xs text-muted-foreground">ยาที่ให้แล้ว</p>
           <p className="font-bold text-primary">
             {overview?.medications.given ?? 0}/{overview?.medications.total ?? 0}

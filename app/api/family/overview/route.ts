@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import type { LogType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
@@ -90,12 +90,12 @@ export async function GET(request: Request) {
 
     if (!patient) {
       if (patientId) {
-        return NextResponse.json({ error: "ไม่พบข้อมูลผู้ป่วย" }, { status: 404 });
+        return NextResponse.json({ error: "ไม่พบข้อมูลผู้สูงอายุ" }, { status: 404 });
       }
       return NextResponse.json({
         patient: null,
         status: "ok" as const,
-        statusMessage: "ยังไม่มีข้อมูลผู้ป่วยในระบบ",
+        statusMessage: "ยังไม่มีข้อมูลผู้สูงอายุในระบบ",
         vitals: null,
         caregiver: null,
         medications: { given: 0, total: 0 },
@@ -145,11 +145,11 @@ export async function GET(request: Request) {
         : status === "warning"
           ? alertMsg ?? "มีข้อมูลที่ควรติดตาม — ทีมดูแลกำลังตรวจสอบ"
           : caregiverName
-            ? `สัญญาณชีพอยู่ในเกณฑ์ปกติ — ${caregiverName} กำลังดูแล`
-            : "สัญญาณชีพอยู่ในเกณฑ์ปกติ";
+            ? `ค่าสถิติร่างกายอยู่ในเกณฑ์ปกติ — ${caregiverName} กำลังดูแล`
+            : "ค่าสถิติร่างกายอยู่ในเกณฑ์ปกติ";
 
-    const meds = patient.medications;
-    const givenCount = meds.filter((m) => m.status === "GIVEN").length;
+    const meds = patient.medications.filter((m) => !m.selfAdministered);
+    const givenCount = meds.filter((m) => m.status !== "PENDING").length;
 
     const rawLogs = await prisma.activityLog.findMany({
       where: { organizationId: orgId, patientId: patient.id },
@@ -186,6 +186,21 @@ export async function GET(request: Request) {
         firstName: patient.firstName,
         lastName: patient.lastName,
         roomNumber: patient.roomNumber,
+        baselineSystolic: patient.baselineSystolic,
+        baselineDiastolic: patient.baselineDiastolic,
+        baselineTemperature: patient.baselineTemperature,
+        baselineHeartRate: patient.baselineHeartRate,
+        baselineOxygenSat: patient.baselineOxygenSat,
+        baselineSystolicLower: patient.baselineSystolicLower,
+        baselineSystolicUpper: patient.baselineSystolicUpper,
+        baselineDiastolicLower: patient.baselineDiastolicLower,
+        baselineDiastolicUpper: patient.baselineDiastolicUpper,
+        baselineTemperatureLower: patient.baselineTemperatureLower,
+        baselineTemperatureUpper: patient.baselineTemperatureUpper,
+        baselineHeartRateLower: patient.baselineHeartRateLower,
+        baselineHeartRateUpper: patient.baselineHeartRateUpper,
+        baselineOxygenSatMin: patient.baselineOxygenSatMin,
+        baselineOxygenSatMax: patient.baselineOxygenSatMax,
         baselineInsightText: patient.baselineInsightText,
         baselineCalculatedAt: patient.baselineCalculatedAt?.toISOString() ?? null,
       },
@@ -199,6 +214,8 @@ export async function GET(request: Request) {
             heartRate: latestVital.heartRate,
             oxygenSat: latestVital.oxygenSat,
             measuredAt: latestVital.measuredAt.toISOString(),
+            recordedByName: latestVital.recordedByName,
+            recordedByRole: latestVital.recordedByRole,
             bloodPressureStatus: getBloodPressureStatus(
               latestVital.systolic,
               latestVital.diastolic,

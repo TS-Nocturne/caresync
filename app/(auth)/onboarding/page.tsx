@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { organization, useSession } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/app/components/ui/ThemeToggle";
 
 type SessionUserWithConsent = {
@@ -41,13 +41,15 @@ function createWorkspaceSlug(name: string) {
   return `${base || FALLBACK_WORKSPACE_SLUG}-${randomSlugSuffix()}`;
 }
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkingWorkspace, setCheckingWorkspace] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, isPending } = useSession();
+  const forceCreate = searchParams.get("create") === "1";
 
   useEffect(() => {
     if (isPending) return;
@@ -72,12 +74,12 @@ export default function OnboardingPage() {
       .then((data) => {
         if (cancelled) return;
 
-        if (data?.redirect && data.redirect !== "/onboarding") {
+        if (!forceCreate && data?.redirect && data.redirect !== "/onboarding") {
           router.replace(data.redirect);
           return;
         }
 
-        if (data?.multipleWorkspaces && data.workspaces?.some((workspace) => !workspace.isDeleted)) {
+        if (!forceCreate && data?.multipleWorkspaces && data.workspaces?.some((workspace) => !workspace.isDeleted)) {
           router.replace("/dashboard");
           return;
         }
@@ -91,7 +93,7 @@ export default function OnboardingPage() {
     return () => {
       cancelled = true;
     };
-  }, [isPending, session, router]);
+  }, [forceCreate, isPending, session, router]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,10 +159,12 @@ export default function OnboardingPage() {
           🏠
         </div>
 
-        <h1 className="text-3xl font-extrabold text-foreground mb-2">สร้างห้องดูแล (Workspace)</h1>
+        <h1 className="text-3xl font-extrabold text-foreground mb-2">
+          {forceCreate ? "เพิ่มห้องดูแลใหม่" : "สร้างห้องดูแล (Workspace)"}
+        </h1>
         <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-7">
           คุณคือ <strong className="text-foreground">เจ้าของห้อง (Owner)</strong> — คนเดียวที่ชำระค่าแผนรายเดือน
-          พยาบาลและครอบครัวจะถูกเชินฟรีผ่านลิงก์
+          ผู้ดูแลและครอบครัวจะถูกเชิญฟรีผ่านลิงก์
         </p>
 
         {error && (
@@ -187,10 +191,27 @@ export default function OnboardingPage() {
             disabled={loading || !orgName.trim()}
             className="w-full py-3.5 sm:py-4 bg-primary text-primary-foreground rounded-xl font-bold text-base sm:text-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
-            {loading ? "Creating..." : "สร้าง Workspace"}
+            {loading ? "Creating..." : forceCreate ? "เพิ่มห้องใหม่" : "สร้าง Workspace"}
           </button>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center space-y-3">
+            <div className="mx-auto h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <p className="text-sm text-muted-foreground">กำลังโหลด...</p>
+          </div>
+        </div>
+      }
+    >
+      <OnboardingPageContent />
+    </Suspense>
   );
 }

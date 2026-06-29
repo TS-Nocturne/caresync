@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sanitizeCallbackUrl } from "./lib/redirects";
 
 const PROTECTED_PATTERN =
-  /^\/(dashboard|onboarding)$|^\/invite\/|^\/[^/]+\/(dashboard|caregiver|family|alert|settings|consent|patients)(\/|$)/;
+  /^\/(dashboard|onboarding)$|^\/invite\/|^\/[^/]+\/(dashboard|caregiver|family|calendar|alert|settings|consent|patients)(\/|$)/;
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,6 +28,7 @@ export const config = {
     "/:orgId/dashboard",
     "/:orgId/caregiver/:path*",
     "/:orgId/family/:path*",
+    "/:orgId/calendar/:path*",
     "/:orgId/alert/:path*",
     "/:orgId/settings/:path*",
     "/:orgId/patients/:path*",

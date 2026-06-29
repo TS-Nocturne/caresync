@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireOrgMembership } from "@/lib/auth-server";
-import { requireCaregiverWriteAccess } from "@/lib/caregiver-access";
 import { assessVitalRisk } from "@/lib/vital-alerts";
 import { apiError, readJsonBody } from "@/lib/api-security";
 import { requireWritableSubscription } from "@/lib/subscriptions";
+import { getPortalAccess, requirePatientAccess } from "@/lib/workspace-access";
 
 type VitalsRequestBody = {
   orgId?: unknown;
@@ -24,6 +24,11 @@ function isOptionalPositiveNumber(value: unknown) {
 
 function toNullableNumber(value: unknown) {
   return typeof value === "number" ? value : null;
+}
+
+function actorRoleLabel(access: Awaited<ReturnType<typeof getPortalAccess>>) {
+  if (access?.isFamily && !access.isCaregiver && !access.isOwner && !access.isAdmin) return "FAMILY";
+  return "CAREGIVER";
 }
 
 export async function GET(request: Request) {
@@ -79,7 +84,8 @@ export async function POST(request: Request) {
 
     await requireOrgMembership(orgId, session.user.id);
     await requireWritableSubscription(orgId);
-    await requireCaregiverWriteAccess(orgId, session.user.id, patientId);
+    await requirePatientAccess(orgId, session.user.id, patientId);
+    const access = await getPortalAccess(orgId, session.user.id);
 
     const patient = await prisma.patient.findFirst({
       where: { id: patientId, organizationId: orgId },
@@ -98,6 +104,9 @@ export async function POST(request: Request) {
       heartRate: toNullableNumber(heartRate),
       oxygenSat: toNullableNumber(oxygenSat),
       notes: typeof notes === "string" ? notes : null,
+      recordedById: session.user.id,
+      recordedByName: session.user.name,
+      recordedByRole: actorRoleLabel(access),
     };
 
     const newVital = await prisma.vitalSign.create({ data: vitalData });
@@ -118,8 +127,8 @@ export async function POST(request: Request) {
         organizationId: orgId,
         patientId,
         type: "VITAL_RECORDED",
-        title: "บันทึกสัญญาณชีพ",
-        description: `${patient.firstName} ${patient.lastName}: ${description}`,
+        title: "บันทึกค่าสถิติร่างกาย",
+        description: `${patient.firstName} ${patient.lastName}: ${description} — recorded by ${actorRoleLabel(access).toLowerCase()}`,
         userId: session.user.id,
       },
     });
@@ -152,7 +161,7 @@ export async function POST(request: Request) {
       success: true,
       data: newVital,
       alertsTriggered: riskAlerts.length,
-      message: "บันทึกข้อมูลสัญญาณชีพสำเร็จ",
+      message: "บันทึกค่าสถิติร่างกายสำเร็จ",
     });
   } catch (error) {
     return apiError(error, "Failed to save vitals");

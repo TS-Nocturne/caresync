@@ -8,8 +8,8 @@ export function canCreateEvent(access: PortalAccess | null, eventType: EventType
   if (access.orgRole === "owner" || access.orgRole === "admin") return true;
 
   if (access.isFamily) {
-    // Family members can create Visit or Other events
-    return eventType === "VISIT" || eventType === "OTHER";
+    // Family members can add visits, family appointments, and general notes.
+    return eventType === "VISIT" || eventType === "MEDICAL_APPOINTMENT" || eventType === "OTHER";
   }
 
   if (access.isCaregiver) {

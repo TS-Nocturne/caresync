@@ -97,16 +97,16 @@ export default function VitalSignsForm({
   ];
 
   return (
-    <div className="glass-card p-5 animate-fade-in">
+    <div className="glass-card p-4 sm:p-5 animate-fade-in">
       <div className="flex items-center gap-2 mb-5">
         <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5h2.382a1.5 1.5 0 0 0 1.342-.83l1.526-3.051a.75.75 0 0 1 1.414.164l2.172 6.517a.75.75 0 0 0 1.393.1l1.83-4.574a1.5 1.5 0 0 1 1.393-.943H21" />
         </svg>
-        <h2 className="text-lg font-semibold">สัญญาณชีพ</h2>
+        <h2 className="text-lg font-semibold">ค่าสถิติร่างกาย</h2>
       </div>
 
       {/* Metric Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         <MetricCard
           label="ความดัน"
           value={`${vitals.systolic}/${vitals.diastolic}`}
@@ -144,12 +144,12 @@ export default function VitalSignsForm({
 
           return (
             <div key={f.key} className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                 <label className="text-sm font-medium flex items-center gap-2">
                   {f.icon}
                   {f.label}
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-[420px]:justify-end">
                   <input
                     type="number"
                     value={val}

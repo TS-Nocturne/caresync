@@ -6,6 +6,7 @@ import { useSession } from "@/lib/auth-client";
 import StatusBadge from "@/app/components/ui/StatusBadge";
 import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
 import CheckInOut from "./CheckInOut";
+import SharedCalendar from "../../(family)/family/SharedCalendar";
 import VitalSignsForm, { type VitalData } from "./VitalSignsForm";
 import PainBodyMap from "./PainBodyMap";
 import MedicationChecklist from "./MedicationChecklist";
@@ -46,6 +47,7 @@ interface PatientSummary {
 interface MedItem {
   id: string;
   status: "PENDING" | "GIVEN" | "SKIPPED";
+  selfAdministered?: boolean;
 }
 
 function vitalsFromPatient(p: PatientSummary): VitalData {
@@ -101,7 +103,7 @@ export default function CaregiverDashboard() {
     loadPatient();
   }, [orgId]);
 
-  const pendingMedCount = medications.filter((m) => m.status === "PENDING").length;
+  const pendingMedCount = medications.filter((m) => !m.selfAdministered && m.status === "PENDING").length;
 
   const buildVitalsPayload = () => ({
     systolic: vitals.systolic,
@@ -218,7 +220,7 @@ export default function CaregiverDashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-5 sm:space-y-6">
       {showConfirmDialog && validationIssues.length > 0 && (
         <VitalConfirmDialog
           issues={validationIssues}
@@ -232,10 +234,10 @@ export default function CaregiverDashboard() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold">บันทึกข้อมูลผู้สูงอายุ</h1>
+      <div className="flex flex-col gap-4 animate-fade-in sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-col gap-2 mb-1 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-3">
+            <h1 className="text-xl font-bold sm:text-2xl">บันทึกข้อมูลผู้สูงอายุ</h1>
             <StatusBadge 
               status={patient?.aiEnabled === false ? "disabled" : "ok"} 
               label={patient?.aiEnabled === false ? "AI Disabled" : undefined} 
@@ -247,7 +249,7 @@ export default function CaregiverDashboard() {
               : "กำลังโหลดข้อมูลผู้สูงอายุ..."}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground sm:shrink-0">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.5-1.632Z" />
@@ -285,6 +287,8 @@ export default function CaregiverDashboard() {
 
       <CheckInOut />
 
+      <SharedCalendar orgId={orgId} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <VitalSignsForm vitals={vitals} onChange={setVitals} baseline={patient} />
@@ -308,12 +312,12 @@ export default function CaregiverDashboard() {
         onMedsChange={setMedications}
       />
 
-      <div className="sticky bottom-4 flex justify-center animate-slide-up">
+      <div className="sticky bottom-4 z-20 flex justify-center animate-slide-up">
         <button
           onClick={handleSave}
           data-write-action="true"
           disabled={saving || !patient || !symptomReviewed || pendingMedCount > 0}
-          className={`px-8 py-4 rounded-2xl text-lg font-semibold shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-full max-w-md px-5 py-3.5 rounded-2xl text-base sm:text-lg font-semibold shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed sm:px-8 sm:py-4 ${
             saved
               ? "bg-status-ok text-white scale-95"
               : "bg-primary text-primary-foreground hover:bg-primary-dark hover:shadow-2xl hover:scale-[1.02]"
