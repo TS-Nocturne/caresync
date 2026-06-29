@@ -50,6 +50,7 @@ export default function OrgDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retryingPatientId, setRetryingPatientId] = useState<string | null>(null);
+  const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadPatients() {
@@ -95,6 +96,26 @@ export default function OrgDashboard() {
       setError(err instanceof Error ? err.message : "AI sync retry failed");
     } finally {
       setRetryingPatientId(null);
+    }
+  };
+
+  const deletePatient = async (patient: PatientRow) => {
+    const confirmed = window.confirm(
+      `Delete patient data for ${patient.firstName} ${patient.lastName}?\n\nThis will permanently delete health records, medications, alerts, consent records, and history for this patient.`
+    );
+    if (!confirmed) return;
+
+    setDeletingPatientId(patient.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/patients/${patient.id}?orgId=${orgId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to delete patient");
+      setPatients((current) => current.filter((item) => item.id !== patient.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete patient");
+    } finally {
+      setDeletingPatientId(null);
     }
   };
 
@@ -270,12 +291,28 @@ export default function OrgDashboard() {
                         <td className="py-4">{patient.caregiverName ?? "—"}</td>
                         {access?.canAccessDashboard && (
                           <td className="py-4 text-right">
-                            <Link
-                              href={`/${orgId}/patients/${patient.id}/edit`}
-                              className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                            >
-                              แก้ไขข้อมูล
-                            </Link>
+                            <div className="flex flex-wrap justify-end gap-2">
+                              <a
+                                href={`/api/patients/${patient.id}/export?orgId=${orgId}`}
+                                className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                              >
+                                Export PDF
+                              </a>
+                              <Link
+                                href={`/${orgId}/patients/${patient.id}/edit`}
+                                className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                              >
+                                แก้ไขข้อมูล
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => deletePatient(patient)}
+                                disabled={deletingPatientId === patient.id}
+                                className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-50"
+                              >
+                                {deletingPatientId === patient.id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>

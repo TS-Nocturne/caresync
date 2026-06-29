@@ -9,6 +9,7 @@ import {
 } from "@/lib/patient-registration";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 import { requireWritableSubscription } from "@/lib/subscriptions";
+import { deletePatientData } from "@/lib/patient-data-retention";
 
 async function requireOwnerOrAdmin(orgId: string, userId: string) {
   const member = await requireOrgMembership(orgId, userId);
@@ -309,5 +310,35 @@ export async function PUT(request: Request, context: { params: Promise<{ patient
     });
   } catch (error) {
     return apiError(error, "Failed to update patient");
+  }
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ patientId: string }> }) {
+  try {
+    const session = await requireSession();
+    const { patientId } = await context.params;
+    const { searchParams } = new URL(request.url);
+    const orgId = searchParams.get("orgId");
+
+    if (!orgId) {
+      return NextResponse.json({ error: "orgId is required" }, { status: 400 });
+    }
+
+    await requireOwnerOrAdmin(orgId, session.user.id);
+
+    const deleted = await deletePatientData({
+      orgId,
+      patientId,
+      actorUserId: session.user.id,
+      reason: "deleted by workspace admin",
+    });
+
+    if (!deleted) {
+      return NextResponse.json({ error: "Patient not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: { deleted: true, patientId } });
+  } catch (error) {
+    return apiError(error, "Failed to delete patient");
   }
 }

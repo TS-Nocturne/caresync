@@ -42,6 +42,24 @@ const INSURANCE_OPTIONS: { value: InsuranceType; label: string }[] = [
   { value: "SELF_PAY", label: "จ่ายเอง" },
 ];
 
+const THAI_MONTHS = [
+  "มกราคม",
+  "กุมภาพันธ์",
+  "มีนาคม",
+  "เมษายน",
+  "พฤษภาคม",
+  "มิถุนายน",
+  "กรกฎาคม",
+  "สิงหาคม",
+  "กันยายน",
+  "ตุลาคม",
+  "พฤศจิกายน",
+  "ธันวาคม",
+] as const;
+
+const BUDDHIST_YEAR_OFFSET = 543;
+const MIN_BIRTH_YEAR_AD = 1900;
+
 const emptyMed = (): MedicationInput => ({
   name: "",
   strength: "",
@@ -111,6 +129,121 @@ const booleanValue = (value: unknown) => value === true;
 
 const stringListValue = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+function getDateParts(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return { day: "", month: "", yearBE: "" };
+
+  return {
+    day: String(Number(match[3])),
+    month: String(Number(match[2])),
+    yearBE: String(Number(match[1]) + BUDDHIST_YEAR_OFFSET),
+  };
+}
+
+function daysInMonth(yearBE: string, month: string) {
+  const monthNumber = Number(month);
+  if (!monthNumber) return 31;
+
+  const yearAD = Number(yearBE) ? Number(yearBE) - BUDDHIST_YEAR_OFFSET : 2000;
+  return new Date(yearAD, monthNumber, 0).getDate();
+}
+
+function toDateInputValueFromThaiParts(day: string, month: string, yearBE: string) {
+  const dayNumber = Number(day);
+  const monthNumber = Number(month);
+  const yearBENumber = Number(yearBE);
+
+  if (!dayNumber || !monthNumber || !yearBENumber) return "";
+
+  const yearAD = yearBENumber - BUDDHIST_YEAR_OFFSET;
+  const maxDay = daysInMonth(yearBE, month);
+  const safeDay = Math.min(dayNumber, maxDay);
+  return `${yearAD}-${String(monthNumber).padStart(2, "0")}-${String(safeDay).padStart(2, "0")}`;
+}
+
+function ThaiBirthDateInput({
+  value,
+  onChange,
+  inputClass,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  inputClass: string;
+}) {
+  const currentYearBE = new Date().getFullYear() + BUDDHIST_YEAR_OFFSET;
+  const yearsBE = useMemo(
+    () =>
+      Array.from(
+        { length: currentYearBE - (MIN_BIRTH_YEAR_AD + BUDDHIST_YEAR_OFFSET) + 1 },
+        (_, index) => String(currentYearBE - index)
+      ),
+    [currentYearBE]
+  );
+
+  const initialParts = useMemo(() => getDateParts(value), [value]);
+  const [selectedDay, setSelectedDay] = useState(initialParts.day);
+  const [selectedMonth, setSelectedMonth] = useState(initialParts.month);
+  const [selectedYearBE, setSelectedYearBE] = useState(initialParts.yearBE);
+
+  const maxDay = daysInMonth(selectedYearBE, selectedMonth);
+
+  const updateDate = (next: { day?: string; month?: string; yearBE?: string }) => {
+    const day = next.day ?? selectedDay;
+    const month = next.month ?? selectedMonth;
+    const yearBE = next.yearBE ?? selectedYearBE;
+    const safeDay = day && Number(day) > daysInMonth(yearBE, month) ? String(daysInMonth(yearBE, month)) : day;
+
+    setSelectedDay(safeDay);
+    setSelectedMonth(month);
+    setSelectedYearBE(yearBE);
+    onChange(toDateInputValueFromThaiParts(safeDay, month, yearBE));
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      <select
+        className={inputClass}
+        aria-label="วันเกิด"
+        value={selectedDay}
+        onChange={(event) => updateDate({ day: event.target.value })}
+      >
+        <option value="">วัน</option>
+        {Array.from({ length: maxDay }, (_, index) => String(index + 1)).map((day) => (
+          <option key={day} value={day}>
+            {day}
+          </option>
+        ))}
+      </select>
+      <select
+        className={inputClass}
+        aria-label="เดือนเกิด"
+        value={selectedMonth}
+        onChange={(event) => updateDate({ month: event.target.value })}
+      >
+        <option value="">เดือน</option>
+        {THAI_MONTHS.map((month, index) => (
+          <option key={month} value={String(index + 1)}>
+            {month}
+          </option>
+        ))}
+      </select>
+      <select
+        className={inputClass}
+        aria-label="ปีเกิด พ.ศ."
+        value={selectedYearBE}
+        onChange={(event) => updateDate({ yearBE: event.target.value })}
+      >
+        <option value="">ปี พ.ศ.</option>
+        {yearsBE.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 const hasDraftContent = (data: DraftFormData) =>
   Boolean(
@@ -718,7 +851,12 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">วันเกิด * {age != null && <span className="text-primary">({age} ปี)</span>}</label>
-                <input type="date" className={inputClass} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+                <ThaiBirthDateInput
+                  key={dateOfBirth || "empty-birth-date"}
+                  value={dateOfBirth}
+                  onChange={setDateOfBirth}
+                  inputClass={inputClass}
+                />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">เพศ</label>
