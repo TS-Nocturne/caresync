@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runExpiredAccountPatientRetention } from "@/lib/patient-data-retention";
+import { runDailyPatientMaintenance } from "@/lib/patient-maintenance";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +14,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const retention = await runExpiredAccountPatientRetention();
+  const result = await runDailyPatientMaintenance();
 
   return NextResponse.json({
     checked: true,
-    ...retention,
+    ...result,
   });
 }
