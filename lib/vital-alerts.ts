@@ -57,6 +57,31 @@ function getOxygenThresholds(baseline?: VitalBaseline | null) {
   };
 }
 
+function finiteNumber(value: number | null | undefined) {
+  return value != null && Number.isFinite(value) ? value : null;
+}
+
+function dynamicRange({
+  lower,
+  upper,
+  baseline,
+  tolerance,
+}: {
+  lower: number | null | undefined;
+  upper: number | null | undefined;
+  baseline: number | null | undefined;
+  tolerance: number;
+}) {
+  const explicitLower = finiteNumber(lower);
+  const explicitUpper = finiteNumber(upper);
+  const singleBaseline = finiteNumber(baseline);
+
+  return {
+    lower: explicitLower ?? (singleBaseline != null ? singleBaseline - tolerance : null),
+    upper: explicitUpper ?? (singleBaseline != null ? singleBaseline + tolerance : null),
+  };
+}
+
 function aboveDynamicUpper(
   value: number | null | undefined,
   upper: number | null | undefined
@@ -89,38 +114,62 @@ function farBelowDynamicLower(
 
 export function assessVitalRisk(vitals: VitalInput, baseline?: VitalBaseline | null): VitalAlert[] {
   const alerts: VitalAlert[] = [];
+  const systolicRange = dynamicRange({
+    lower: baseline?.baselineSystolicLower,
+    upper: baseline?.baselineSystolicUpper,
+    baseline: baseline?.baselineSystolic,
+    tolerance: 10,
+  });
+  const diastolicRange = dynamicRange({
+    lower: baseline?.baselineDiastolicLower,
+    upper: baseline?.baselineDiastolicUpper,
+    baseline: baseline?.baselineDiastolic,
+    tolerance: 6,
+  });
+  const temperatureRange = dynamicRange({
+    lower: baseline?.baselineTemperatureLower,
+    upper: baseline?.baselineTemperatureUpper,
+    baseline: baseline?.baselineTemperature,
+    tolerance: 0.4,
+  });
+  const heartRateRange = dynamicRange({
+    lower: baseline?.baselineHeartRateLower,
+    upper: baseline?.baselineHeartRateUpper,
+    baseline: baseline?.baselineHeartRate,
+    tolerance: 12,
+  });
 
-  if (farBelowDynamicLower(vitals.systolic, baseline?.baselineSystolicLower, 10)) {
+  if (farBelowDynamicLower(vitals.systolic, systolicRange.lower, 10)) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันบนต่ำ",
       description: `ความดันบน ${vitals.systolic} mmHg ต่ำกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (belowDynamicLower(vitals.systolic, baseline?.baselineSystolicLower)) {
+  } else if (belowDynamicLower(vitals.systolic, systolicRange.lower)) {
     alerts.push({
       level: "WARNING",
       title: "ความดันบนต่ำเล็กน้อย",
       description: `ความดันบน ${vitals.systolic} mmHg ต่ำกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (farAboveDynamicUpper(vitals.systolic, baseline?.baselineSystolicUpper, 10)) {
+  } else if (farAboveDynamicUpper(vitals.systolic, systolicRange.upper, 10)) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันบนสูง",
       description: `ความดันบน ${vitals.systolic} mmHg สูงกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (aboveDynamicUpper(vitals.systolic, baseline?.baselineSystolicUpper)) {
+  } else if (aboveDynamicUpper(vitals.systolic, systolicRange.upper)) {
     alerts.push({
       level: "WARNING",
       title: "ความดันบนสูงเล็กน้อย",
       description: `ความดันบน ${vitals.systolic} mmHg สูงกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (baseline?.baselineSystolicUpper == null && vitals.systolic != null && vitals.systolic >= 141) {
+  } else if (systolicRange.upper == null && vitals.systolic != null && vitals.systolic >= 141) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันบนสูง",
       description: `ความดันบน ${vitals.systolic} mmHg สูงกว่าเกณฑ์ปกติ`,
     });
-  } else if (baseline?.baselineSystolicUpper == null && vitals.systolic != null && vitals.systolic >= 130) {
+  } else if (systolicRange.upper == null && vitals.systolic != null && vitals.systolic >= 130) {
     alerts.push({
       level: "WARNING",
       title: "ความดันบนสูงเล็กน้อย",
@@ -128,37 +177,37 @@ export function assessVitalRisk(vitals: VitalInput, baseline?: VitalBaseline | n
     });
   }
 
-  if (farBelowDynamicLower(vitals.diastolic, baseline?.baselineDiastolicLower, 6)) {
+  if (farBelowDynamicLower(vitals.diastolic, diastolicRange.lower, 6)) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันล่างต่ำ",
       description: `ความดันล่าง ${vitals.diastolic} mmHg ต่ำกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (belowDynamicLower(vitals.diastolic, baseline?.baselineDiastolicLower)) {
+  } else if (belowDynamicLower(vitals.diastolic, diastolicRange.lower)) {
     alerts.push({
       level: "WARNING",
       title: "ความดันล่างต่ำเล็กน้อย",
       description: `ความดันล่าง ${vitals.diastolic} mmHg ต่ำกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (farAboveDynamicUpper(vitals.diastolic, baseline?.baselineDiastolicUpper, 6)) {
+  } else if (farAboveDynamicUpper(vitals.diastolic, diastolicRange.upper, 6)) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันล่างสูง",
       description: `ความดันล่าง ${vitals.diastolic} mmHg สูงกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (aboveDynamicUpper(vitals.diastolic, baseline?.baselineDiastolicUpper)) {
+  } else if (aboveDynamicUpper(vitals.diastolic, diastolicRange.upper)) {
     alerts.push({
       level: "WARNING",
       title: "ความดันล่างสูงเล็กน้อย",
       description: `ความดันล่าง ${vitals.diastolic} mmHg สูงกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (baseline?.baselineDiastolicUpper == null && vitals.diastolic != null && vitals.diastolic >= 91) {
+  } else if (diastolicRange.upper == null && vitals.diastolic != null && vitals.diastolic >= 91) {
     alerts.push({
       level: "CRITICAL",
       title: "ความดันล่างสูง",
       description: `ความดันล่าง ${vitals.diastolic} mmHg สูงกว่าเกณฑ์ปกติ`,
     });
-  } else if (baseline?.baselineDiastolicUpper == null && vitals.diastolic != null && vitals.diastolic >= 85) {
+  } else if (diastolicRange.upper == null && vitals.diastolic != null && vitals.diastolic >= 85) {
     alerts.push({
       level: "WARNING",
       title: "ความดันล่างสูงเล็กน้อย",
@@ -166,37 +215,37 @@ export function assessVitalRisk(vitals: VitalInput, baseline?: VitalBaseline | n
     });
   }
 
-  if (farBelowDynamicLower(vitals.temperature, baseline?.baselineTemperatureLower, 0.6)) {
+  if (farBelowDynamicLower(vitals.temperature, temperatureRange.lower, 0.6)) {
     alerts.push({
       level: "CRITICAL",
       title: "อุณหภูมิต่ำ",
       description: `อุณหภูมิ ${vitals.temperature}°C ต่ำกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (belowDynamicLower(vitals.temperature, baseline?.baselineTemperatureLower)) {
+  } else if (belowDynamicLower(vitals.temperature, temperatureRange.lower)) {
     alerts.push({
       level: "WARNING",
       title: "อุณหภูมิต่ำเล็กน้อย",
       description: `อุณหภูมิ ${vitals.temperature}°C ต่ำกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (farAboveDynamicUpper(vitals.temperature, baseline?.baselineTemperatureUpper, 0.6)) {
+  } else if (farAboveDynamicUpper(vitals.temperature, temperatureRange.upper, 0.6)) {
     alerts.push({
       level: "CRITICAL",
       title: "อุณหภูมิสูง",
       description: `อุณหภูมิ ${vitals.temperature}°C สูงกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (aboveDynamicUpper(vitals.temperature, baseline?.baselineTemperatureUpper)) {
+  } else if (aboveDynamicUpper(vitals.temperature, temperatureRange.upper)) {
     alerts.push({
       level: "WARNING",
       title: "อุณหภูมิสูงเล็กน้อย",
       description: `อุณหภูมิ ${vitals.temperature}°C สูงกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (baseline?.baselineTemperatureUpper == null && vitals.temperature != null && vitals.temperature >= 38.1) {
+  } else if (temperatureRange.upper == null && vitals.temperature != null && vitals.temperature >= 38.1) {
     alerts.push({
       level: "CRITICAL",
       title: "อุณหภูมิสูง",
       description: `อุณหภูมิ ${vitals.temperature}°C สูงกว่าเกณฑ์ปกติ`,
     });
-  } else if (baseline?.baselineTemperatureUpper == null && vitals.temperature != null && vitals.temperature >= 37.5) {
+  } else if (temperatureRange.upper == null && vitals.temperature != null && vitals.temperature >= 37.5) {
     alerts.push({
       level: "WARNING",
       title: "อุณหภูมิสูงเล็กน้อย",
@@ -204,37 +253,37 @@ export function assessVitalRisk(vitals: VitalInput, baseline?: VitalBaseline | n
     });
   }
 
-  if (farBelowDynamicLower(vitals.heartRate, baseline?.baselineHeartRateLower, 12)) {
+  if (farBelowDynamicLower(vitals.heartRate, heartRateRange.lower, 12)) {
     alerts.push({
       level: "CRITICAL",
       title: "ชีพจรช้า",
       description: `ชีพจร ${vitals.heartRate} bpm ต่ำกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (belowDynamicLower(vitals.heartRate, baseline?.baselineHeartRateLower)) {
+  } else if (belowDynamicLower(vitals.heartRate, heartRateRange.lower)) {
     alerts.push({
       level: "WARNING",
       title: "ชีพจรช้าเล็กน้อย",
       description: `ชีพจร ${vitals.heartRate} bpm ต่ำกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (farAboveDynamicUpper(vitals.heartRate, baseline?.baselineHeartRateUpper, 12)) {
+  } else if (farAboveDynamicUpper(vitals.heartRate, heartRateRange.upper, 12)) {
     alerts.push({
       level: "CRITICAL",
       title: "ชีพจรเร็ว",
       description: `ชีพจร ${vitals.heartRate} bpm สูงกว่าเกณฑ์เฉพาะบุคคลมาก`,
     });
-  } else if (aboveDynamicUpper(vitals.heartRate, baseline?.baselineHeartRateUpper)) {
+  } else if (aboveDynamicUpper(vitals.heartRate, heartRateRange.upper)) {
     alerts.push({
       level: "WARNING",
       title: "ชีพจรเร็วเล็กน้อย",
       description: `ชีพจร ${vitals.heartRate} bpm สูงกว่าค่าปกติเฉพาะบุคคล`,
     });
-  } else if (baseline?.baselineHeartRateUpper == null && vitals.heartRate != null && vitals.heartRate >= 101) {
+  } else if (heartRateRange.upper == null && vitals.heartRate != null && vitals.heartRate >= 101) {
     alerts.push({
       level: "CRITICAL",
       title: "ชีพจรเร็ว",
       description: `ชีพจร ${vitals.heartRate} bpm สูงกว่าเกณฑ์ปกติ`,
     });
-  } else if (baseline?.baselineHeartRateUpper == null && vitals.heartRate != null && vitals.heartRate >= 90) {
+  } else if (heartRateRange.upper == null && vitals.heartRate != null && vitals.heartRate >= 90) {
     alerts.push({
       level: "WARNING",
       title: "ชีพจรเร็วเล็กน้อย",
