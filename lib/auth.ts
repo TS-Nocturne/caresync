@@ -33,6 +33,15 @@ export const auth = betterAuth({
         required: false,
         defaultValue: false,
       },
+      planType: {
+        type: "string",
+        required: false,
+        defaultValue: "FREE",
+      },
+      trialEndsAt: {
+        type: "date",
+        required: false,
+      },
     },
   },
   socialProviders: googleEnabled

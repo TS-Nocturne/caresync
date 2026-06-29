@@ -2,7 +2,7 @@
 import { randomBytes } from "crypto";
 import { prisma } from "./prisma";
 import { canAddMember, canCreateInvite } from "./subscription-limits";
-import { requireWritableSubscription } from "./subscriptions";
+import { requireOrgSubscription, requireWritableSubscription } from "./subscriptions";
 import { formatInviteCode, normalizeInviteCode } from "./invite-code";
 
 const INVITE_TTL_DAYS = 7;
@@ -25,7 +25,7 @@ async function generateUniqueInviteToken() {
 }
 
 export async function getOrgSubscription(orgId: string) {
-  return prisma.subscription.findUnique({ where: { organizationId: orgId } });
+  return requireOrgSubscription(orgId);
 }
 
 export async function assertCanInvite(orgId: string) {

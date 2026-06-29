@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { apiError, readJsonBody } from "@/lib/api-security";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe";
 
 export async function DELETE(request: Request) {
   try {
@@ -32,17 +31,6 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ data: { deleted: true } });
     }
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { organizationId: orgId },
-      select: { stripeSubId: true },
-    });
-    const stripe = getStripe();
-    if (stripe && subscription?.stripeSubId) {
-      await stripe.subscriptions.update(subscription.stripeSubId, {
-        cancel_at_period_end: true,
-      });
-    }
-
     await prisma.$transaction([
       prisma.organization.update({
         where: { id: orgId },
@@ -54,10 +42,6 @@ export async function DELETE(request: Request) {
       prisma.workspaceInvite.updateMany({
         where: { organizationId: orgId, status: "PENDING" },
         data: { status: "REVOKED" },
-      }),
-      prisma.subscription.updateMany({
-        where: { organizationId: orgId },
-        data: { cancelAtPeriodEnd: true },
       }),
     ]);
 

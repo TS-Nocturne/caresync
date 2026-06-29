@@ -7,6 +7,7 @@ import {
   getEffectiveSubscriptionStatus,
   isTrialSubscription,
   requireOrgSubscription,
+  startUserTrial,
 } from "@/lib/subscriptions";
 import {
   billingIntervalForStripePriceId,
@@ -25,7 +26,6 @@ const BILLING_INTERVAL_DAYS = {
 } as const satisfies Record<BillingInterval, number>;
 
 const BILLING_INTERVALS = ["month", "semi_annual", "year"] as const;
-const CARD_TRIAL_DAYS = 14;
 
 function isBillingInterval(value: unknown): value is BillingInterval {
   return typeof value === "string" && value in BILLING_INTERVAL_DAYS;
@@ -73,8 +73,8 @@ export async function GET(request: Request) {
       ? await getStripeCancelState(subscription.stripeSubId)
       : null;
     if (stripeState) {
-      await prisma.subscription.update({
-        where: { organizationId: orgId },
+      await prisma.user.update({
+        where: { id: subscription.userId },
         data: {
           cancelAtPeriodEnd: stripeState.cancelAtPeriodEnd,
           currentPeriodEnd: stripeState.currentPeriodEnd ?? subscription.currentPeriodEnd,
@@ -82,13 +82,21 @@ export async function GET(request: Request) {
         },
       });
     }
+
     const currentStripePriceId = stripeState?.priceId ?? subscription.stripePriceId;
     const currentInterval = billingIntervalForStripePriceId(currentStripePriceId);
     const currentPeriodEnd = stripeState?.currentPeriodEnd ?? subscription.currentPeriodEnd;
     const cancelAtPeriodEnd = stripeState?.cancelAtPeriodEnd ?? subscription.cancelAtPeriodEnd;
-    const isActive =
-      subscription.status === "ACTIVE" && currentPeriodEnd != null && currentPeriodEnd >= new Date();
-    const effectivePlan = isActive ? subscription.plan : getEffectivePlan(subscription);
+    const effectivePlan = getEffectivePlan({
+      ...subscription,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    });
+    const status = getEffectiveSubscriptionStatus({
+      ...subscription,
+      currentPeriodEnd,
+      cancelAtPeriodEnd,
+    });
     const memberCount = await prisma.member.count({ where: { organizationId: orgId } });
     const pendingInvites = await prisma.workspaceInvite.count({
       where: { organizationId: orgId, status: "PENDING", expiresAt: { gt: new Date() } },
@@ -97,14 +105,10 @@ export async function GET(request: Request) {
     return NextResponse.json({
       data: {
         plan: effectivePlan,
-        status:
-          cancelAtPeriodEnd && isActive
-            ? "CANCELING"
-            : isActive
-              ? subscription.status
-              : getEffectiveSubscriptionStatus(subscription),
+        status,
         currentInterval,
-        currentPeriodEnd: currentPeriodEnd?.toISOString() ?? null,
+        currentPeriodEnd: (currentPeriodEnd ?? subscription.trialEndsAt)?.toISOString() ?? null,
+        trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
         cancelAtPeriodEnd,
         memberCount,
         pendingInvites,
@@ -118,6 +122,7 @@ export async function GET(request: Request) {
         stripeConfigured: isStripeConfigured(),
         hasStripeCustomer: !!subscription.stripeCustomerId,
         hasStripeSubscription: !!subscription.stripeSubId,
+        hasUsedTrial: !!subscription.trialEndsAt,
         isTrial: isTrialSubscription(subscription),
         isOwner: true,
       },
@@ -146,26 +151,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const subscription = await requireOrgSubscription(orgId);
+    if (!subscription.trialEndsAt && !subscription.stripeSubId) {
+      const trial = await startUserTrial(subscription.userId);
+      return NextResponse.json({
+        data: {
+          mode: "trial",
+          trialEndsAt: trial.trialEndsAt?.toISOString() ?? null,
+        },
+      });
+    }
+
     const stripe = getStripe();
     const priceId = stripePriceIdForInterval(interval);
-
     if (!stripe || !priceId) {
       throw new Error("Billing is not configured");
     }
 
-    const subscription = await requireOrgSubscription(orgId);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
     let customerId = subscription.stripeCustomerId;
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: session.user.email,
         name: session.user.name,
-        metadata: { orgId },
+        metadata: { userId: subscription.userId },
       });
       customerId = customer.id;
-      await prisma.subscription.update({
-        where: { organizationId: orgId },
+      await prisma.user.update({
+        where: { id: subscription.userId },
         data: { stripeCustomerId: customerId },
       });
     }
@@ -175,19 +188,13 @@ export async function POST(request: Request) {
       payment_method_types: ["card"],
       payment_method_collection: "always",
       customer: customerId,
-      client_reference_id: orgId,
+      client_reference_id: subscription.userId,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/${orgId}/settings/billing?success=1`,
       cancel_url: `${baseUrl}/${orgId}/settings/billing?canceled=1`,
-      metadata: { orgId, plan, interval },
+      metadata: { userId: subscription.userId, orgId, plan, interval },
       subscription_data: {
-        trial_period_days: CARD_TRIAL_DAYS,
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: "cancel",
-          },
-        },
-        metadata: { orgId, plan, interval },
+        metadata: { userId: subscription.userId, orgId, plan, interval },
       },
     });
 
@@ -225,13 +232,6 @@ export async function PATCH(request: Request) {
       throw new Error("Billing is not configured");
     }
 
-    if (stripe && priceId && !subscription.stripeSubId) {
-      return NextResponse.json(
-        { error: "No active subscription. Start checkout first." },
-        { status: 409 }
-      );
-    }
-
     const stripeSubId = subscription.stripeSubId;
     if (!stripeSubId) {
       return NextResponse.json(
@@ -250,7 +250,7 @@ export async function PATCH(request: Request) {
       cancel_at_period_end: false,
       proration_behavior: "none",
       items: [{ id: itemId, price: priceId }],
-      metadata: { orgId, plan: "PRO", interval },
+      metadata: { userId: subscription.userId, orgId, plan: "PRO", interval },
     });
 
     const raw = updatedStripeSubscription as unknown as {
@@ -258,11 +258,11 @@ export async function PATCH(request: Request) {
       items?: { data?: Array<{ price?: { id?: string } }> };
     };
 
-    const updated = await prisma.subscription.update({
-      where: { organizationId: orgId },
+    const updated = await prisma.user.update({
+      where: { id: subscription.userId },
       data: {
-        plan: "PRO",
-        status: "ACTIVE",
+        planType: "PRO",
+        subscriptionStatus: "ACTIVE",
         cancelAtPeriodEnd: false,
         stripePriceId: raw.items?.data?.[0]?.price?.id ?? priceId,
         currentPeriodEnd:
@@ -305,8 +305,8 @@ export async function DELETE(request: Request) {
         cancel_at_period_end?: boolean;
       };
 
-      const updated = await prisma.subscription.update({
-        where: { organizationId: orgId },
+      const updated = await prisma.user.update({
+        where: { id: subscription.userId },
         data: {
           cancelAtPeriodEnd: Boolean(raw.cancel_at_period_end),
           currentPeriodEnd:
@@ -319,8 +319,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ data: { subscription: updated, mode: "stripe-cancel-at-period-end" } });
     }
 
-    const updated = await prisma.subscription.update({
-      where: { organizationId: orgId },
+    const updated = await prisma.user.update({
+      where: { id: subscription.userId },
       data: {
         cancelAtPeriodEnd: true,
         currentPeriodEnd: subscription.currentPeriodEnd ?? new Date(),

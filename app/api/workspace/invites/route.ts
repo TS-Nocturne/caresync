@@ -8,7 +8,7 @@ import {
   createWorkspaceInvite,
   revokeWorkspaceInvite,
 } from "@/lib/workspace-invites";
-import { requireOrgSubscription } from "@/lib/subscriptions";
+import { getEffectivePlan, requireOrgSubscription } from "@/lib/subscriptions";
 import { apiError, readJsonBody, sanitizeText } from "@/lib/api-security";
 
 async function requireOwner(orgId: string, userId: string) {
@@ -27,6 +27,7 @@ export async function GET(request: Request) {
     await requireOwner(orgId, session.user.id);
 
     const subscription = await requireOrgSubscription(orgId);
+    const plan = getEffectivePlan(subscription);
     const [invites, memberCount] = await Promise.all([
       prisma.workspaceInvite.findMany({
         where: { organizationId: orgId },
@@ -59,10 +60,10 @@ export async function GET(request: Request) {
         createdAt: invite.createdAt.toISOString(),
         isExpired: invite.status === "PENDING" && invite.expiresAt < new Date(),
       })),
-      limits: PLAN_LIMITS[subscription.plan],
+      limits: PLAN_LIMITS[plan],
       memberCount,
       pendingCount,
-      plan: subscription.plan,
+      plan,
     });
   } catch (error) {
     return apiError(error, "Failed to list invites");

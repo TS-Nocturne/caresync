@@ -25,13 +25,15 @@ async function getStripeSubscriptionDetails(subscriptionId: string | null) {
   if (!stripe || !subscriptionId) return null;
 
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const raw = subscription as unknown as {
+  const raw = subscription as unknown as {
     cancel_at_period_end?: boolean;
     current_period_end?: number;
     items?: { data?: Array<{ price?: { id?: string } }> };
+    metadata?: { userId?: string };
   };
 
   return {
+    userId: raw.metadata?.userId ?? null,
     cancelAtPeriodEnd: Boolean(raw.cancel_at_period_end),
     currentPeriodEnd:
       typeof raw.current_period_end === "number"
@@ -64,11 +66,11 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const orgId = session.metadata?.orgId;
+    const userId = session.metadata?.userId || session.client_reference_id;
     const plan = session.metadata?.plan;
     const interval = session.metadata?.interval;
 
-    if (typeof orgId !== "string" || plan !== "PRO" || !isBillingInterval(interval)) {
+    if (typeof userId !== "string" || plan !== "PRO" || !isBillingInterval(interval)) {
       return NextResponse.json({ received: true });
     }
 
@@ -87,21 +89,11 @@ export async function POST(request: Request) {
 
     const currentPeriodEnd = stripeDetails?.currentPeriodEnd ?? fallbackPeriodEnd(interval);
 
-    await prisma.subscription.upsert({
-      where: { organizationId: orgId },
-      update: {
-        plan,
-        status: "ACTIVE",
-        stripeCustomerId: stripeCustomerId ?? undefined,
-        stripeSubId: stripeSubId ?? undefined,
-        stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd,
-      },
-      create: {
-        organizationId: orgId,
-        plan,
-        status: "ACTIVE",
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        planType: "PRO",
+        subscriptionStatus: "ACTIVE",
         stripeCustomerId: stripeCustomerId ?? undefined,
         stripeSubId: stripeSubId ?? undefined,
         stripePriceId: stripeDetails?.priceId ?? expectedPriceId,
@@ -121,10 +113,11 @@ export async function POST(request: Request) {
     if (typeof stripeSubId === "string") {
       const stripeDetails = await getStripeSubscriptionDetails(stripeSubId);
       if (stripeDetails?.currentPeriodEnd) {
-        await prisma.subscription.updateMany({
+        await prisma.user.updateMany({
           where: { stripeSubId },
           data: {
-            status: "ACTIVE",
+            planType: "PRO",
+            subscriptionStatus: "ACTIVE",
             cancelAtPeriodEnd: stripeDetails.cancelAtPeriodEnd,
             stripePriceId: stripeDetails.priceId ?? undefined,
             currentPeriodEnd: stripeDetails.currentPeriodEnd,
@@ -137,9 +130,9 @@ export async function POST(request: Request) {
   if (event.type === "customer.subscription.deleted") {
     const subscription = event.data.object as unknown as { id?: string };
     if (typeof subscription.id === "string") {
-      await prisma.subscription.updateMany({
+      await prisma.user.updateMany({
         where: { stripeSubId: subscription.id },
-        data: { status: "CANCELED" },
+        data: { subscriptionStatus: "CANCELED", planType: "FREE" },
       });
     }
   }

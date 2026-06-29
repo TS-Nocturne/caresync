@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import SoftLockWrapper from "@/app/components/ui/SoftLockWrapper";
 import Navigation from "@/app/components/ui/Navigation";
 import { redirect } from "next/navigation";
+import {
+  getEffectivePlan,
+  getEffectiveSubscriptionStatus,
+  requireOrgSubscription,
+} from "@/lib/subscriptions";
 
 type SessionUserWithConsent = {
   termsAccepted?: boolean;
@@ -28,7 +33,7 @@ export default async function OrgLayout(props: {
   const [org, member, sub] = await Promise.all([
     prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, deletedAt: true } }),
     prisma.member.findUnique({ where: { userId_organizationId: { userId: session.user.id, organizationId: orgId } } }),
-    prisma.subscription.findUnique({ where: { organizationId: orgId } })
+    requireOrgSubscription(orgId)
   ]);
 
   if (!org || !member || org.deletedAt) {
@@ -37,8 +42,8 @@ export default async function OrgLayout(props: {
 
   const isOwner = member.role === "owner";
   
-  const plan = sub?.plan || "FREE";
-  const status = sub?.status || "ACTIVE";
+  const plan = getEffectivePlan(sub);
+  const status = getEffectiveSubscriptionStatus(sub);
   
   let isGracePeriod = false;
   let isReadOnly = false;
@@ -48,8 +53,8 @@ export default async function OrgLayout(props: {
   if (plan === "FREE") {
     isReadOnly = true;
     lockReason = "not_subscribed";
-  } else if (status === "PAST_DUE" || (sub?.currentPeriodEnd && sub.currentPeriodEnd < new Date())) {
-    const expiredAt = sub?.currentPeriodEnd ? sub.currentPeriodEnd.getTime() : 0;
+  } else if (status === "PAST_DUE" || status === "EXPIRED") {
+    const expiredAt = sub.currentPeriodEnd?.getTime() ?? sub.trialEndsAt?.getTime() ?? 0;
     const now = new Date().getTime();
     
     if (expiredAt > 0) {

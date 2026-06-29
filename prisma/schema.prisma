@@ -19,6 +19,14 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   termsAccepted Boolean  @default(false)
+  planType      PlanTier @default(FREE)
+  trialEndsAt   DateTime?
+  stripeCustomerId String? @unique
+  stripePriceId String?
+  stripeSubId   String? @unique
+  subscriptionStatus SubStatus @default(ACTIVE)
+  cancelAtPeriodEnd Boolean @default(false)
+  currentPeriodEnd DateTime?
 
   sessions    Session[]
   accounts    Account[]
@@ -96,9 +104,6 @@ model Organization {
   invitations      Invitation[]
   workspaceInvites WorkspaceInvite[]
 
-  // SaaS Subscription
-  subscription Subscription?
-
   // Domain Relations (SaaS Isolation)
   patients       Patient[]
   vitalSigns     VitalSign[]
@@ -144,21 +149,6 @@ model Invitation {
 // ==========================================
 // SAAS BILLING / SUBSCRIPTION
 // ==========================================
-
-model Subscription {
-  id               String       @id @default(cuid())
-  organizationId   String       @unique
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  stripeCustomerId String?      @unique
-  stripePriceId    String?
-  stripeSubId      String?      @unique
-  plan             PlanTier     @default(FREE)
-  status           SubStatus    @default(ACTIVE)
-  cancelAtPeriodEnd Boolean     @default(false)
-  currentPeriodEnd DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-}
 
 model BrainThread {
   id          String   @id @default(cuid())

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
 import { getStripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
+import { requireOrgSubscription } from "@/lib/subscriptions";
 import { apiError, readJsonBody } from "@/lib/api-security";
 
 export async function POST(request: Request) {
@@ -19,9 +19,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { organizationId: orgId },
-    });
+    const subscription = await requireOrgSubscription(orgId);
 
     if (!subscription?.stripeCustomerId || !subscription.stripeSubId) {
       throw new Error("No active Stripe subscription found");

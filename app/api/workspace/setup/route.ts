@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOrgMembership, requireSession } from "@/lib/auth-server";
-import { ensureSubscriptionRecord } from "@/lib/subscriptions";
+import { ensureUserSubscriptionRecord, getEffectivePlan } from "@/lib/subscriptions";
 import { apiError, readJsonBody } from "@/lib/api-security";
 
 export async function POST(request: Request) {
@@ -16,10 +16,10 @@ export async function POST(request: Request) {
       throw new Error("Forbidden");
     }
 
-    const subscription = await ensureSubscriptionRecord(body.orgId);
+    const subscription = await ensureUserSubscriptionRecord(session.user.id);
 
     return NextResponse.json({
-      data: { plan: subscription.plan, organizationId: body.orgId, ownerId: session.user.id },
+      data: { plan: getEffectivePlan(subscription), organizationId: body.orgId, ownerId: session.user.id },
     });
   } catch (error) {
     return apiError(error, "Failed to setup workspace");

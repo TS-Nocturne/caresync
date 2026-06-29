@@ -27,6 +27,7 @@ interface BillingData {
   stripeConfigured: boolean;
   hasStripeCustomer: boolean;
   hasStripeSubscription: boolean;
+  hasUsedTrial: boolean;
   isTrial: boolean;
 }
 
@@ -100,7 +101,8 @@ export default function BillingSettingsPage() {
   const pendingPlan = confirmInterval ? PLAN_COPY[confirmInterval] : null;
   const confirmActionLabel = useMemo(() => {
     if (!data || !confirmInterval) return "";
-    if (!data.hasStripeSubscription) return "เริ่มทดลองใช้ฟรี 14 วัน";
+    if (!data.hasStripeSubscription && !data.hasUsedTrial) return "เริ่มทดลองใช้ฟรี 14 วัน";
+    if (!data.hasStripeSubscription) return "ไปหน้าชำระเงิน";
     if (data.cancelAtPeriodEnd && data.currentInterval === confirmInterval) return "ยืนยันใช้งานต่อ";
     return "ยืนยันเปลี่ยนแผน";
   }, [confirmInterval, data]);
@@ -274,7 +276,13 @@ export default function BillingSettingsPage() {
                           </span>
                         ) : (
                           <span className="inline-flex rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground">
-                            {isResume ? "กลับมาใช้งานต่อ" : data.hasStripeSubscription ? "เปลี่ยนเป็นแผนนี้" : "เริ่มทดลองใช้ฟรี 14 วัน"}
+                            {isResume
+                              ? "กลับมาใช้งานต่อ"
+                              : data.hasStripeSubscription
+                                ? "เปลี่ยนเป็นแผนนี้"
+                                : data.hasUsedTrial
+                                  ? "สมัครแผนนี้"
+                                  : "เริ่มทดลองใช้ฟรี 14 วัน"}
                           </span>
                         )}
                       </div>
@@ -313,7 +321,9 @@ export default function BillingSettingsPage() {
               คุณกำลังเลือกแผน {pendingPlan.name} ราคา {pendingPlan.price} {pendingPlan.cadence}
               {data?.hasStripeSubscription
                 ? " ระบบจะยังไม่เรียกเก็บเงินทันที และจะใช้แผนใหม่นี้เมื่อรอบปัจจุบันหมดอายุ"
-                : " ระบบจะพาไปหน้าชำระเงินเพื่อเริ่มใช้งานแผนนี้"}
+                : data?.hasUsedTrial
+                  ? " ระบบจะพาไปหน้าชำระเงินเพื่อเริ่มใช้งานแผนนี้"
+                  : " ระบบจะเริ่มช่วงทดลองใช้ฟรี 14 วันให้บัญชีของคุณ"}
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
