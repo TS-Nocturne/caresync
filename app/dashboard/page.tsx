@@ -19,18 +19,21 @@ interface WorkspaceResponse {
 export default function DashboardRedirectPage() {
   const router = useRouter();
   const { data: session, isPending } = useSession();
+  const userId = session?.user?.id;
+  const userName = session?.user?.name;
+  const termsAccepted = (session?.user as SessionUserWithConsent | undefined)?.termsAccepted;
   const [workspaces, setWorkspaces] = useState<WorkspaceInfo[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isPending) return;
 
-    if (!session) {
+    if (!userId) {
       router.replace("/login");
       return;
     }
 
-    if ((session.user as SessionUserWithConsent).termsAccepted === false) {
+    if (termsAccepted === false) {
       router.replace("/consent");
       return;
     }
@@ -70,14 +73,14 @@ export default function DashboardRedirectPage() {
     return () => {
       cancelled = true;
     };
-  }, [isPending, session, router]);
+  }, [isPending, termsAccepted, userId, router]);
 
   // Show workspace selector when user has multiple workspaces
   if (workspaces && !loading) {
     return (
       <WorkspaceSelector
         workspaces={workspaces}
-        userName={session?.user?.name ?? undefined}
+        userName={userName}
       />
     );
   }

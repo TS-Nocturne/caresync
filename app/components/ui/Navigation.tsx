@@ -20,6 +20,7 @@ export default function Navigation() {
   const router = useRouter();
   const orgId = params.orgId as string | undefined;
   const { data: session } = useSession();
+  const userId = session?.user?.id;
   const { data: activeOrg } = useActiveOrganization();
   const { access } = usePortalAccess(orgId);
 
@@ -29,7 +30,7 @@ export default function Navigation() {
 
   // Fetch all workspaces for the profile dropdown
   useEffect(() => {
-    if (!session) return;
+    if (!userId) return;
     let cancelled = false;
 
     fetch("/api/me/workspace", { cache: "no-store" })
@@ -48,7 +49,7 @@ export default function Navigation() {
       .catch(() => {});
 
     return () => { cancelled = true; };
-  }, [session]);
+  }, [userId]);
 
   // Close profile menu on outside click
   useEffect(() => {

@@ -49,17 +49,19 @@ function OnboardingPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending } = useSession();
+  const userId = session?.user?.id;
+  const termsAccepted = (session?.user as SessionUserWithConsent | undefined)?.termsAccepted;
   const forceCreate = searchParams.get("create") === "1";
 
   useEffect(() => {
     if (isPending) return;
 
-    if (!session) {
+    if (!userId) {
       router.replace("/login");
       return;
     }
 
-    if ((session.user as SessionUserWithConsent).termsAccepted === false) {
+    if (termsAccepted === false) {
       router.replace("/consent");
       return;
     }
@@ -93,7 +95,7 @@ function OnboardingPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [forceCreate, isPending, session, router]);
+  }, [forceCreate, isPending, termsAccepted, userId, router]);
 
   const handleCreateWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();

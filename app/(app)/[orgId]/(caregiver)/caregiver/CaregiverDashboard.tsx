@@ -65,8 +65,10 @@ export default function CaregiverDashboard() {
   const router = useRouter();
   const orgId = params.orgId as string;
   const { data: session } = useSession();
+  const userName = session?.user?.name ?? "—";
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [assessing, setAssessing] = useState(false);
   const [error, setError] = useState("");
   const [patient, setPatient] = useState<PatientSummary | null>(null);
   const [vitals, setVitals] = useState<VitalData>({
@@ -113,6 +115,60 @@ export default function CaregiverDashboard() {
     spo2: vitals.oxygenSat,
   });
 
+  const runBrainAssessment = async ({
+    patientId,
+    symptoms,
+    notes,
+    vitalsPayload,
+    validationConfirmed,
+  }: {
+    patientId: string;
+    symptoms: string[];
+    notes: string;
+    vitalsPayload: ReturnType<typeof buildVitalsPayload>;
+    validationConfirmed: boolean;
+  }) => {
+    setAssessing(true);
+    setBrainMessage("บันทึกข้อมูลแล้ว กำลังให้ AI วิเคราะห์ต่อเบื้องหลัง...");
+
+    try {
+      const brainRes = await fetch("/api/brain/assess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orgId,
+          patientId,
+          symptoms,
+          notes,
+          vitals: vitalsPayload,
+          validation_confirmed: validationConfirmed,
+        }),
+      });
+      const brainJson = await brainRes.json();
+      if (!brainRes.ok) throw new Error(brainJson.error || "AI brain assessment failed");
+
+      if (brainJson.status === "needs_confirmation") {
+        setValidationIssues(brainJson.validation_issues ?? brainJson.state?.validation_issues ?? []);
+        setShowConfirmDialog(true);
+        setPendingValidationConfirmed(true);
+        setBrainMessage("");
+        return;
+      }
+
+      if (brainJson.status === "waiting_for_human") {
+        router.push(`/${orgId}/family`);
+        return;
+      }
+
+      setBrainMessage(brainJson.state?.ai_analysis ?? "AI วิเคราะห์ข้อมูลเฝ้าระวังเบื้องต้นแล้ว");
+    } catch (err) {
+      console.error("AI Assessment error:", err);
+      setBrainMessage("บันทึกข้อมูลแล้ว แต่ AI ยังวิเคราะห์ไม่สำเร็จในรอบนี้");
+    } finally {
+      setAssessing(false);
+    }
+  };
+
   const runSave = async (validationConfirmed: boolean) => {
     if (!patient) {
       setError("ไม่พบข้อมูลผู้สูงอายุ กรุณาเพิ่มข้อมูลผู้สูงอายุก่อนใช้งาน");
@@ -144,49 +200,16 @@ export default function CaregiverDashboard() {
     setShowConfirmDialog(false);
 
     try {
+      const vitalsPayload = buildVitalsPayload();
+      const patientId = patient.id;
+      const symptomsForAssessment = [...selectedSymptoms];
+      const notesForAssessment = symptomNotes;
+
       await createVitalSignAction({
         orgId,
-        patientId: patient.id,
+        patientId,
         ...vitals,
       });
-
-      if (patient.aiEnabled !== false) {
-        try {
-          const brainRes = await fetch("/api/brain/assess", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orgId,
-              patientId: patient.id,
-              symptoms: selectedSymptoms,
-              notes: symptomNotes,
-              vitals: buildVitalsPayload(),
-              validation_confirmed: validationConfirmed,
-            }),
-          });
-          const brainJson = await brainRes.json();
-          if (!brainRes.ok) throw new Error(brainJson.error || "AI brain assessment failed");
-
-          if (brainJson.status === "needs_confirmation") {
-            setValidationIssues(brainJson.validation_issues ?? brainJson.state?.validation_issues ?? []);
-            setShowConfirmDialog(true);
-            setPendingValidationConfirmed(true);
-            return;
-          }
-
-          if (brainJson.status === "waiting_for_human") {
-            router.push(`/${orgId}/family`);
-            return;
-          }
-
-          setBrainMessage(brainJson.state?.ai_analysis ?? "ประมวลผลข้อมูลเฝ้าระวังเบื้องต้นแล้ว");
-        } catch (err) {
-          console.error("AI Assessment error:", err);
-          setError("บันทึกข้อมูลสำเร็จ แต่ระบบประมวลผลข้อมูลเฝ้าระวัง AI ไม่สามารถให้บริการได้ในขณะนี้");
-        }
-      } else {
-        setBrainMessage("");
-      }
 
       setSaved(true);
       setSelectedSymptoms([]);
@@ -194,6 +217,18 @@ export default function CaregiverDashboard() {
       setSymptomReviewed(false);
       setPendingValidationConfirmed(false);
       setTimeout(() => setSaved(false), 3000);
+
+      if (patient.aiEnabled !== false) {
+        void runBrainAssessment({
+          patientId,
+          symptoms: symptomsForAssessment,
+          notes: notesForAssessment,
+          vitalsPayload,
+          validationConfirmed,
+        });
+      } else {
+        setBrainMessage("");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ");
     } finally {
@@ -255,7 +290,7 @@ export default function CaregiverDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.5-1.632Z" />
             </svg>
           </span>
-          ผู้ดูแล: {session?.user?.name ?? "—"}
+          ผู้ดูแล: {userName}
         </div>
       </div>
 
@@ -275,7 +310,10 @@ export default function CaregiverDashboard() {
 
       {brainMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm">
-          {brainMessage}
+          <div className="flex items-center gap-2">
+            {assessing && <span className="h-3 w-3 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" />}
+            <span>{brainMessage}</span>
+          </div>
         </div>
       )}
 
