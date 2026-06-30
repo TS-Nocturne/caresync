@@ -334,6 +334,20 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
     setter(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
   };
 
+  const addUniqueItem = (
+    value: string,
+    list: string[],
+    setter: (v: string[]) => void,
+    clear: () => void
+  ) => {
+    const item = value.trim();
+    if (!item) return;
+    if (!list.some((current) => current.toLowerCase() === item.toLowerCase())) {
+      setter([...list, item]);
+    }
+    clear();
+  };
+
   const resetForm = useCallback(() => {
     setStep(1);
     setError("");
@@ -469,8 +483,12 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
     weightKg: weightKg ? Number(weightKg) : undefined,
     heightCm: heightCm ? Number(heightCm) : undefined,
     roomNumber: roomNumber.trim() || undefined,
-    underlyingDiseases,
-    allergies,
+    underlyingDiseases: customDisease.trim()
+      ? Array.from(new Set([...underlyingDiseases, customDisease.trim()]))
+      : underlyingDiseases,
+    allergies: customAllergy.trim()
+      ? Array.from(new Set([...allergies, customAllergy.trim()]))
+      : allergies,
     mobilityStatus,
     baselineSystolic: baselineSystolic ? Number(baselineSystolic) : undefined,
     baselineDiastolic: baselineDiastolic ? Number(baselineDiastolic) : undefined,
@@ -486,7 +504,7 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
       .map((m) => ({ ...m, dosage: `${m.doseAmount} ${m.doseUnit}` })),
   }), [
     orgId, firstName, lastName, nickname, dateOfBirth, gender, bloodType,
-    weightKg, heightCm, roomNumber, underlyingDiseases, allergies, mobilityStatus,
+    weightKg, heightCm, roomNumber, underlyingDiseases, customDisease, allergies, customAllergy, mobilityStatus,
     baselineSystolic, baselineDiastolic, baselineTemperature, baselineHeartRate,
     baselineOxygenSat, preferredHospital, hospitalNumber, insuranceType,
     emergencyContacts, medications, consentRelation, consentMandatory, consentOptional
@@ -919,20 +937,38 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                   placeholder="เพิ่มโรคอื่น..."
                   value={customDisease}
                   onChange={(e) => setCustomDisease(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addUniqueItem(customDisease, underlyingDiseases, setUnderlyingDiseases, () => setCustomDisease(""));
+                    }
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => {
-                    if (customDisease.trim()) {
-                      setUnderlyingDiseases([...underlyingDiseases, customDisease.trim()]);
-                      setCustomDisease("");
-                    }
+                    addUniqueItem(customDisease, underlyingDiseases, setUnderlyingDiseases, () => setCustomDisease(""));
                   }}
                   className="px-4 py-2 rounded-xl bg-muted text-sm font-medium shrink-0"
                 >
                   เพิ่ม
                 </button>
               </div>
+              {underlyingDiseases.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {underlyingDiseases.map((disease) => (
+                    <button
+                      key={disease}
+                      type="button"
+                      onClick={() => setUnderlyingDiseases(underlyingDiseases.filter((item) => item !== disease))}
+                      className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/15"
+                      title="กดเพื่อลบรายการนี้"
+                    >
+                      {disease} ×
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -959,20 +995,38 @@ export default function PatientRegistrationWizard({ mode = "create", patientId }
                   placeholder="เพิ่มสารที่แพ้..."
                   value={customAllergy}
                   onChange={(e) => setCustomAllergy(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addUniqueItem(customAllergy, allergies, setAllergies, () => setCustomAllergy(""));
+                    }
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => {
-                    if (customAllergy.trim()) {
-                      setAllergies([...allergies, customAllergy.trim()]);
-                      setCustomAllergy("");
-                    }
+                    addUniqueItem(customAllergy, allergies, setAllergies, () => setCustomAllergy(""));
                   }}
                   className="px-4 py-2 rounded-xl bg-muted text-sm font-medium shrink-0"
                 >
                   เพิ่ม
                 </button>
               </div>
+              {allergies.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {allergies.map((allergy) => (
+                    <button
+                      key={allergy}
+                      type="button"
+                      onClick={() => setAllergies(allergies.filter((item) => item !== allergy))}
+                      className="rounded-full border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
+                      title="กดเพื่อลบรายการนี้"
+                    >
+                      {allergy} ×
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
