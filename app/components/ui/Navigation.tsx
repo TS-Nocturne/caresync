@@ -89,6 +89,7 @@ export default function Navigation() {
   const links = allLinks.filter((l) => access && l.show);
 
   return (
+    <>
     <nav className="fixed top-0 left-0 w-full bg-card/90 backdrop-blur-md border-b border-border z-50 transition-colors">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 flex items-center justify-between gap-3 py-2 sm:py-0">
         <div className="flex min-w-0 items-center gap-4 lg:gap-6">
@@ -245,11 +246,12 @@ export default function Navigation() {
           </div>
         </div>
       )}
-      <ProfileSettingsModal
-        open={showProfileSettings}
-        onClose={() => setShowProfileSettings(false)}
-        onSaved={() => window.location.reload()}
-      />
     </nav>
+    <ProfileSettingsModal
+      open={showProfileSettings}
+      onClose={() => setShowProfileSettings(false)}
+      onSaved={() => window.location.reload()}
+    />
+    </>
   );
 }
