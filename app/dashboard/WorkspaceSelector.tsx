@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { organization } from "@/lib/auth-client";
 
 export interface WorkspaceInfo {
@@ -94,6 +95,12 @@ export default function WorkspaceSelector({ workspaces, userName }: WorkspaceSel
         <p className="workspace-selector__subtitle">
           เลือกห้องที่คุณต้องการเข้าทำงานวันนี้
         </p>
+        <Link
+          href="/onboarding?create=1"
+          className="mt-5 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary-dark"
+        >
+          + สร้างห้องดูแลใหม่
+        </Link>
       </div>
 
       {error && (

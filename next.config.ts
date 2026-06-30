@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
       "base-uri 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      "img-src 'self' data: blob: https://lh3.googleusercontent.com https://profile.line-scdn.net",
+      "img-src 'self' data: blob: https:",
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",
@@ -37,13 +37,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-        port: "",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "profile.line-scdn.net",
+        hostname: "**",
         port: "",
         pathname: "/**",
       },

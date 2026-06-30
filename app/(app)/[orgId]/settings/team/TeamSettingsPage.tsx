@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import LineConnectCard from "@/app/components/line/LineConnectCard";
 import { formatInviteCode } from "@/lib/invite-code";
 
 interface MemberRow {
@@ -29,7 +30,9 @@ interface InviteRow {
 type LineAccountStatus = {
   connected: boolean;
   connectedAt: string | null;
+  accountLabel: string | null;
   lineEnabled: boolean;
+  addFriendUrl: string | null;
 };
 
 type OAuth2SignInClient = {
@@ -54,8 +57,8 @@ export default function TeamSettingsPage() {
   const [revokingMemberId, setRevokingMemberId] = useState<string | null>(null);
   const [showDeleteRoomModal, setShowDeleteRoomModal] = useState(false);
   const [deletingRoom, setDeletingRoom] = useState(false);
-  const [lineAccount, setLineAccount] = useState<LineAccountStatus | null>(null);
-  const [lineLoading, setLineLoading] = useState(true);
+  const [lineAccount] = useState<LineAccountStatus | null>(null);
+  const [lineLoading] = useState(true);
   const [lineConnecting, setLineConnecting] = useState(false);
   const [lineError, setLineError] = useState("");
 
@@ -80,29 +83,13 @@ export default function TeamSettingsPage() {
     }
   }, [orgId]);
 
-  const loadLineAccount = useCallback(async () => {
-    setLineLoading(true);
-    setLineError("");
-    try {
-      const res = await fetch("/api/me/line-account", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setLineAccount(json.data);
-    } catch (err) {
-      setLineError(err instanceof Error ? err.message : "โหลดสถานะ LINE ไม่สำเร็จ");
-    } finally {
-      setLineLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void load();
-      void loadLineAccount();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [load, loadLineAccount]);
+  }, [load]);
 
   const createInvite = async (portalRole: "CAREGIVER" | "FAMILY") => {
     setCreating(portalRole);
@@ -256,7 +243,14 @@ export default function TeamSettingsPage() {
           </div>
         </Link>
 
-        <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
+        <div className="mb-6">
+          <LineConnectCard
+            title="เชื่อมต่อแอปพลิเคชัน"
+            description="เชื่อมต่อ LINE เพื่อรับแจ้งเตือนเหตุฉุกเฉิน ค่าสัญญาณชีพที่ต้องติดตาม และข้อความสำคัญจากห้องดูแล"
+          />
+        </div>
+
+        <section className="hidden bg-card border border-border rounded-2xl p-4 sm:p-6 mb-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold">บัญชี LINE</h2>

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useActiveOrganization } from "@/lib/auth-client";
 import { usePortalAccess } from "@/app/hooks/usePortalAccess";
 import SharedCalendar from "../(family)/family/SharedCalendar";
+import LineConnectCard from "@/app/components/line/LineConnectCard";
 
 interface PatientRow {
   id: string;
@@ -51,6 +52,7 @@ export default function OrgDashboard() {
   const [error, setError] = useState("");
   const [retryingPatientId, setRetryingPatientId] = useState<string | null>(null);
   const [deletingPatientId, setDeletingPatientId] = useState<string | null>(null);
+  const [showLineOnboarding, setShowLineOnboarding] = useState(searchParams.get("registered") === "1");
 
   useEffect(() => {
     async function loadPatients() {
@@ -134,6 +136,54 @@ export default function OrgDashboard() {
         </div>
 
         {/* Team & Billing links moved to Settings via Navigation menu */}
+
+        {showLineOnboarding && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="line-onboarding-title"
+          >
+            <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-600">ลงทะเบียนสำเร็จ</p>
+                  <h2 id="line-onboarding-title" className="mt-1 text-xl font-bold text-foreground">
+                    เชื่อมต่อ LINE เพื่อรับการแจ้งเตือนฉุกเฉินทันที
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    ตั้งค่าตอนนี้ครั้งเดียว ทีมดูแลและครอบครัวจะได้รับแจ้งเตือนสำคัญได้เร็วขึ้นเมื่อมีค่าผิดปกติหรือเหตุฉุกเฉิน
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLineOnboarding(false)}
+                  className="rounded-lg px-2 py-1 text-xl leading-none text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="ปิดหน้าต่างเชื่อมต่อ LINE"
+                >
+                  ×
+                </button>
+              </div>
+              <LineConnectCard mode="compact" onConnectedChange={(connected) => connected && setShowLineOnboarding(false)} />
+              <button
+                type="button"
+                onClick={() => setShowLineOnboarding(false)}
+                className="mt-4 w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                ไว้ตั้งค่าทีหลัง
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="mb-6">
+          <LineConnectCard
+            mode="banner"
+            hideWhenConnected
+            title="ดูแลได้ใกล้ชิดยิ่งขึ้น"
+            description="แจ้งเตือนค่าความดันและเหตุฉุกเฉินตรงถึงมือถือคุณ เชื่อมต่อการแจ้งเตือนผ่าน LINE ฟรี"
+          />
+        </div>
 
         {access?.canAccessDashboard && draft && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 shadow-sm">

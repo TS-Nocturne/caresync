@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
+import LineConnectCard from "@/app/components/line/LineConnectCard";
 import CurrentStatus from "./CurrentStatus";
 import SharedCalendar from "./SharedCalendar";
 import ActivityLog from "./ActivityLog";
@@ -167,6 +168,13 @@ export default function FamilyDashboard() {
         </div>
       ) : (
         <>
+          <LineConnectCard
+            mode="banner"
+            hideWhenConnected
+            title="ดูแลได้ใกล้ชิดยิ่งขึ้น"
+            description="แจ้งเตือนค่าความดันและเหตุฉุกเฉินตรงถึงมือถือคุณ เชื่อมต่อการแจ้งเตือนผ่าน LINE ฟรี"
+          />
+
           {/* Care note banner */}
           <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm animate-fade-in">
             <div className="mb-2 flex items-center gap-2">

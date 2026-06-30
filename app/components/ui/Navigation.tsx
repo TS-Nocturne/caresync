@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { useSession, useActiveOrganization, signOut, organization } from "@/lib/auth-client";
 import ThemeToggle from "@/app/components/ui/ThemeToggle";
+import ProfileSettingsModal from "@/app/components/ui/ProfileSettingsModal";
 import { usePortalAccess } from "@/app/hooks/usePortalAccess";
 import { useEffect, useState, useRef, useCallback } from "react";
 
@@ -26,6 +27,7 @@ export default function Navigation() {
 
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceMini[]>([]);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch all workspaces for the profile dropdown
@@ -134,9 +136,15 @@ export default function Navigation() {
               aria-label="โปรไฟล์ผู้ใช้"
               id="profile-menu-trigger"
             >
-              <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
-                {session?.user?.name?.charAt(0) || "U"}
-              </span>
+              {session?.user?.image ? (
+                <span className="relative h-8 w-8 overflow-hidden rounded-full bg-muted">
+                  <Image src={session.user.image} alt={session.user.name || "Profile"} fill className="object-cover" unoptimized />
+                </span>
+              ) : (
+                <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
+                  {session?.user?.name?.charAt(0) || "U"}
+                </span>
+              )}
               <span className="hidden md:flex min-w-0 flex-col text-left">
                 <span className="max-w-32 truncate text-sm font-medium text-foreground leading-none">
                   {session?.user?.name || "Loading..."}
@@ -181,6 +189,26 @@ export default function Navigation() {
                   </div>
                 )}
 
+                <div className="border-t border-border py-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      setShowProfileSettings(true);
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm font-semibold text-foreground hover:bg-muted"
+                  >
+                    แก้ไขโปรไฟล์
+                  </button>
+                  <Link
+                    href="/onboarding?create=1"
+                    onClick={() => setShowProfileMenu(false)}
+                    className="block px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted"
+                  >
+                    สร้างห้องดูแลใหม่
+                  </Link>
+                </div>
+
                 <button
                   onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}
                   className="w-full border-t border-border px-4 py-3 text-left text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -217,6 +245,11 @@ export default function Navigation() {
           </div>
         </div>
       )}
+      <ProfileSettingsModal
+        open={showProfileSettings}
+        onClose={() => setShowProfileSettings(false)}
+        onSaved={() => window.location.reload()}
+      />
     </nav>
   );
 }
