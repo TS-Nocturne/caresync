@@ -1,4 +1,4 @@
-import { existsSync } from "fs";
+import { existsSync, statSync } from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { NextResponse } from "next/server";
@@ -19,7 +19,13 @@ function findThaiFont() {
     "C:\\Windows\\Fonts\\angsana.ttc",
   ].filter((candidate): candidate is string => Boolean(candidate));
 
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+  return candidates.find((candidate) => {
+    try {
+      return existsSync(candidate) && statSync(candidate).isFile();
+    } catch {
+      return false;
+    }
+  }) ?? null;
 }
 
 function formatDate(value?: Date | string | null) {
@@ -92,7 +98,14 @@ async function buildPdf(patientId: string, orgId: string) {
   const doc = new PDFDocument({ size: "A4", margin: 42, bufferPages: true });
   const fontPath = findThaiFont();
   if (fontPath) {
-    doc.font(fontPath);
+    try {
+      doc.font(fontPath);
+    } catch (error) {
+      console.warn("[patient-export] Failed to load Thai PDF font, using PDFKit default font.", {
+        fontPath,
+        error,
+      });
+    }
   }
 
   const chunks: Buffer[] = [];
@@ -234,8 +247,9 @@ async function buildPdf(patientId: string, orgId: string) {
     });
   }
 
-  const finished = new Promise<void>((resolve) => {
+  const finished = new Promise<void>((resolve, reject) => {
     doc.on("end", resolve);
+    doc.on("error", reject);
   });
   doc.end();
   await finished;
@@ -274,6 +288,7 @@ export async function GET(request: Request, context: { params: Promise<{ patient
       },
     });
   } catch (error) {
+    console.error("[patient-export] Failed to export patient PDF", error);
     return apiError(error, "Failed to export patient PDF");
   }
 }

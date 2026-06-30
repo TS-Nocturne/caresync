@@ -106,7 +106,7 @@ export default function LineConnectCard({
     }
   };
 
-  if (hideWhenConnected && status?.connected) return null;
+  if (hideWhenConnected && (loading || status?.connected)) return null;
 
   const shellClass =
     mode === "banner"
