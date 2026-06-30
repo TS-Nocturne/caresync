@@ -14,6 +14,7 @@ export interface BrainState {
   vitals?: Record<string, unknown>;
   symptoms?: string[];
   current_medications?: string[];
+  recent_care_context?: string;
   retrieved_medical_context?: string;
   validation_issues?: ValidationIssue[];
   validation_confirmed?: boolean;

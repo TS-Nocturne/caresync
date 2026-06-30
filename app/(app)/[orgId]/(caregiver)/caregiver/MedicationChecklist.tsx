@@ -197,6 +197,8 @@ export default function MedicationChecklist({
   const [loading, setLoading] = useState(true);
   const [signingId, setSigningId] = useState<string | null>(null);
   const [skippingId, setSkippingId] = useState<string | null>(null);
+  const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set());
+  const updatingIdsRef = useRef<Set<string>>(new Set());
   const [pendingEvidenceSkip, setPendingEvidenceSkip] = useState<{
     id: string;
     reason: EvidenceSkipReason;
@@ -268,20 +270,32 @@ export default function MedicationChecklist({
     skipReason?: Medication["skipReason"],
     evidenceVerified = false
   ) => {
-    const res = await fetch("/api/medications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId, medicationId: id, status, signatureUrl, skipReason, evidenceVerified }),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "บันทึกยาไม่สำเร็จ");
-    setMeds((current) => {
-      const next = current.map((m) => (m.id === id ? json.data : m));
-      onMedsChange?.(next);
-      return next;
-    });
-    setPrnMeds((current) => current.map((m) => (m.id === id ? json.data : m)));
-    onAfterChange?.();
+    if (updatingIdsRef.current.has(id)) return;
+
+    updatingIdsRef.current = new Set(updatingIdsRef.current).add(id);
+    setUpdatingIds(new Set(updatingIdsRef.current));
+
+    try {
+      const res = await fetch("/api/medications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, medicationId: id, status, signatureUrl, skipReason, evidenceVerified }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "บันทึกยาไม่สำเร็จ");
+      setMeds((current) => {
+        const next = current.map((m) => (m.id === id ? json.data : m));
+        onMedsChange?.(next);
+        return next;
+      });
+      setPrnMeds((current) => current.map((m) => (m.id === id ? json.data : m)));
+      onAfterChange?.();
+    } finally {
+      const next = new Set(updatingIdsRef.current);
+      next.delete(id);
+      updatingIdsRef.current = next;
+      setUpdatingIds(next);
+    }
   };
 
   const confirmGive = async (id: string, sigData: string) => {
@@ -392,10 +406,11 @@ export default function MedicationChecklist({
           )}
 
           {meds.length > 0 && (
-            <div className="space-y-3">
-              {meds.map((med) => {
-                const cfg = statusConfig[med.status];
-                return (
+              <div className="space-y-3">
+                {meds.map((med) => {
+                  const cfg = statusConfig[med.status];
+                  const medUpdating = updatingIds.has(med.id);
+                  return (
                   <div key={med.id}>
                     <div className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg} transition-all`}>
                       <div className="flex flex-col gap-3 min-[520px]:flex-row min-[520px]:items-start">
@@ -443,14 +458,16 @@ export default function MedicationChecklist({
                             <button
                               type="button"
                               onClick={() => mode === "family" ? giveWithoutSignature(med.id) : setSigningId(med.id)}
-                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                              disabled={medUpdating}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
+                              {medUpdating ? "กำลังบันทึก..." : mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
                             </button>
                             <button
                               type="button"
                               onClick={() => mode === "family" ? requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED") : setSkippingId(med.id)}
-                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                              disabled={medUpdating}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {mode === "family" ? "ผู้สูงอายุทานเองแล้ว" : "ข้าม"}
                             </button>
@@ -470,13 +487,13 @@ export default function MedicationChecklist({
                       <div className="mt-2 rounded-xl border border-border bg-card p-3">
                         <p className="mb-2 text-xs font-medium text-muted-foreground">เลือกเหตุผลการข้าม</p>
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white">
+                          <button type="button" disabled={medUpdating} onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                             ญาติให้ยาแล้ว
                           </button>
-                          <button type="button" onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white">
+                          <button type="button" disabled={medUpdating} onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                             ผู้สูงอายุทานเองแล้ว
                           </button>
-                          <button type="button" onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                          <button type="button" disabled={medUpdating} onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">
                             ข้ามอื่นๆ
                           </button>
                           <button type="button" onClick={() => setSkippingId(null)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
@@ -501,6 +518,7 @@ export default function MedicationChecklist({
               <div className="space-y-3">
                 {prnMeds.map((med) => {
                   const cfg = statusConfig[med.status];
+                  const medUpdating = updatingIds.has(med.id);
                   return (
                     <div key={med.id} className={`p-4 rounded-xl border ${cfg.border} ${cfg.bg}`}>
                       <div className="flex flex-col gap-3 min-[520px]:flex-row min-[520px]:items-start">
@@ -532,14 +550,16 @@ export default function MedicationChecklist({
                             <button
                               type="button"
                               onClick={() => mode === "family" ? giveWithoutSignature(med.id) : setSigningId(med.id)}
-                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all"
+                              disabled={medUpdating}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary-dark transition-all disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
+                              {medUpdating ? "กำลังบันทึก..." : mode === "family" ? "บันทึกว่าให้ยาแล้ว" : "ให้ยา + เซ็น"}
                             </button>
                             <button
                               type="button"
                               onClick={() => mode === "family" ? requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED") : setSkippingId(med.id)}
-                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                              disabled={medUpdating}
+                              className="min-h-9 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {mode === "family" ? "ผู้สูงอายุทานเองแล้ว" : "ข้าม"}
                             </button>
@@ -558,13 +578,13 @@ export default function MedicationChecklist({
                         <div className="mt-2 rounded-xl border border-border bg-card p-3">
                           <p className="mb-2 text-xs font-medium text-muted-foreground">เลือกเหตุผลการข้าม</p>
                           <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white">
+                            <button type="button" disabled={medUpdating} onClick={() => requestEvidenceSkip(med.id, "FAMILY_GIVEN")} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                               ญาติให้ยาแล้ว
                             </button>
-                            <button type="button" onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white">
+                            <button type="button" disabled={medUpdating} onClick={() => requestEvidenceSkip(med.id, "PATIENT_SELF_ADMINISTERED")} className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white disabled:cursor-not-allowed disabled:opacity-60">
                               ผู้สูงอายุทานเองแล้ว
                             </button>
-                            <button type="button" onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
+                            <button type="button" disabled={medUpdating} onClick={() => skipMed(med.id, "OTHER")} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-60">
                               ข้ามอื่นๆ
                             </button>
                             <button type="button" onClick={() => setSkippingId(null)} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium">
@@ -600,9 +620,10 @@ export default function MedicationChecklist({
               <button
                 type="button"
                 onClick={() => skipMed(pendingEvidenceSkip.id, pendingEvidenceSkip.reason)}
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                disabled={updatingIds.has(pendingEvidenceSkip.id)}
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ยืนยัน ยาถูกทานแล้ว
+                {updatingIds.has(pendingEvidenceSkip.id) ? "กำลังบันทึก..." : "ยืนยัน ยาถูกทานแล้ว"}
               </button>
             </div>
           </div>

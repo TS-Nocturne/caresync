@@ -20,6 +20,47 @@ function toAlertLevel(riskLevel?: string) {
   return "INFO";
 }
 
+function formatRecentCareContext({
+  submittedSymptoms,
+  submittedNotes,
+  recentSymptoms,
+  recentPainLogs,
+  recentMedicationLogs,
+}: {
+  submittedSymptoms: string[];
+  submittedNotes?: string;
+  recentSymptoms: Array<{ symptom: string; notes: string | null; loggedAt: Date }>;
+  recentPainLogs: Array<{ bodyPart: string; painLevel: number; loggedAt: Date }>;
+  recentMedicationLogs: Array<{ title: string; description: string; createdAt: Date }>;
+}) {
+  const lines: string[] = [];
+
+  if (submittedSymptoms.length > 0 || submittedNotes) {
+    lines.push(
+      `Current submitted abnormal symptoms: ${submittedSymptoms.join(", ") || "-"}${
+        submittedNotes ? `; notes: ${submittedNotes}` : ""
+      }`
+    );
+  }
+
+  for (const item of recentSymptoms) {
+    lines.push(
+      `Recent symptom ${item.loggedAt.toISOString()}: ${item.symptom}${item.notes ? `; notes: ${item.notes}` : ""}`
+    );
+  }
+
+  for (const item of recentPainLogs) {
+    lines.push(`Recent pain ${item.loggedAt.toISOString()}: ${item.bodyPart}, level ${item.painLevel}/10`);
+  }
+
+  for (const item of recentMedicationLogs) {
+    lines.push(`Recent medication event ${item.createdAt.toISOString()}: ${item.title} - ${item.description}`);
+  }
+
+  if (lines.length === 0) return "No abnormal symptoms, pain logs, or medication events recorded in the last 24 hours.";
+  return lines.slice(0, 40).join("\n");
+}
+
 async function recordSymptoms({
   orgId,
   patientId,
@@ -90,6 +131,50 @@ export async function POST(request: Request) {
 
     const symptoms = sanitizeTextList(body.symptoms);
     const notes = sanitizeText(body.notes, 1000) || undefined;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [recentSymptoms, recentPainLogs, recentMedicationLogs] = await Promise.all([
+      prisma.symptomLog.findMany({
+        where: { organizationId: orgId, patientId, loggedAt: { gte: since } },
+        orderBy: { loggedAt: "desc" },
+        take: 20,
+        select: { symptom: true, notes: true, loggedAt: true },
+      }),
+      prisma.painLog.findMany({
+        where: { organizationId: orgId, patientId, loggedAt: { gte: since } },
+        orderBy: { loggedAt: "desc" },
+        take: 20,
+        select: { bodyPart: true, painLevel: true, loggedAt: true },
+      }),
+      prisma.activityLog.findMany({
+        where: {
+          organizationId: orgId,
+          patientId,
+          createdAt: { gte: since },
+          type: { in: ["MEDICATION_GIVEN", "MEDICATION_SKIPPED", "SYMPTOM_LOGGED"] },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: { title: true, description: true, createdAt: true },
+      }),
+    ]);
+
+    const recentCareContext = formatRecentCareContext({
+      submittedSymptoms: symptoms,
+      submittedNotes: notes,
+      recentSymptoms,
+      recentPainLogs,
+      recentMedicationLogs,
+    });
+
+    await recordSymptoms({
+      orgId,
+      patientId,
+      patientName: `${patient.firstName} ${patient.lastName}`,
+      symptoms,
+      notes,
+      userId: session.user.id,
+    });
 
     const assessment = await callBrain<BrainAssessmentResult>("/brain/assess", {
       method: "POST",
@@ -123,8 +208,11 @@ export async function POST(request: Request) {
             med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage,
             med.isPrn ? "PRN" : med.frequency,
             med.indication ? `for ${med.indication}` : null,
+            med.status ? `status ${med.status}` : null,
+            med.givenAt ? `given at ${med.givenAt.toISOString()}` : null,
           ].filter(Boolean).join(" ")
         ),
+        recent_care_context: recentCareContext,
         validation_confirmed: body.validation_confirmed ?? false,
       }),
     });
@@ -153,15 +241,6 @@ export async function POST(request: Request) {
         validation_issues: assessment.state.validation_issues ?? [],
       });
     }
-
-    await recordSymptoms({
-      orgId,
-      patientId,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      symptoms,
-      notes,
-      userId: session.user.id,
-    });
 
     let alertId: string | null = null;
     const riskLevel = assessment.state.risk_level;

@@ -23,6 +23,8 @@ function skipReasonTitle(reason?: MedicationSkipReason) {
   return "Medication skipped";
 }
 
+const PRN_DUPLICATE_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 export async function GET(request: Request) {
   try {
     const session = await requireSession();
@@ -119,20 +121,66 @@ export async function PATCH(request: Request) {
         ? "PATIENT"
         : actorRoleLabel(access);
 
-    const updated = await prisma.medication.update({
-      where: { id: medicationId },
+    if (status === "PENDING") {
+      const reset = await prisma.medication.update({
+        where: { id: medicationId },
+        data: {
+          status,
+          signatureUrl: null,
+          skipReason: null,
+          handledByName: null,
+          handledByRole: null,
+          givenAt: null,
+        },
+      });
+      return NextResponse.json({ data: reset });
+    }
+
+    if (status === "GIVEN" && medication.isPrn) {
+      const recentDuplicate = await prisma.medication.findFirst({
+        where: {
+          id: { not: medicationId },
+          organizationId: orgId,
+          patientId: medication.patientId,
+          isPrn: true,
+          name: medication.name,
+          strength: medication.strength,
+          status: "GIVEN",
+          givenAt: { gte: new Date(Date.now() - PRN_DUPLICATE_WINDOW_MS) },
+        },
+        orderBy: { givenAt: "desc" },
+      });
+
+      if (recentDuplicate) {
+        return NextResponse.json(
+          { error: "This PRN medication was already given within the last 4 hours." },
+          { status: 409 }
+        );
+      }
+    }
+
+    const updateResult = await prisma.medication.updateMany({
+      where: { id: medicationId, organizationId: orgId, status: "PENDING" },
       data: {
         status,
         signatureUrl: status === "GIVEN" ? (signatureUrl ?? medication.signatureUrl) : null,
         skipReason: status === "SKIPPED" ? (skipReason ?? "OTHER") : null,
-        handledByName: status === "PENDING" ? null : session.user.name,
-        handledByRole: status === "PENDING" ? null : handledByRole,
-        givenAt: status === "GIVEN" ? new Date() : status === "PENDING" ? null : medication.givenAt,
+        handledByName: session.user.name,
+        handledByRole,
+        givenAt: status === "GIVEN" ? new Date() : medication.givenAt,
       },
     });
 
-    if (status !== "PENDING") {
-      await prisma.activityLog.create({
+    const updated = await prisma.medication.findUniqueOrThrow({ where: { id: medicationId } });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json(
+        { error: "This medication has already been handled. Refresh the list before changing it again.", data: updated },
+        { status: 409 }
+      );
+    }
+
+    await prisma.activityLog.create({
       data: {
         organizationId: orgId,
         patientId: medication.patientId,
@@ -153,8 +201,7 @@ export async function PATCH(request: Request) {
         ].filter(Boolean).join(" "),
         userId: session.user.id,
       },
-      });
-    }
+    });
 
     return NextResponse.json({ data: updated });
   } catch (error) {
