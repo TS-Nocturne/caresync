@@ -69,7 +69,19 @@ export const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
   BEDTIME: "ก่อนนอน",
 };
 
-export const MEDICATION_DOSE_UNITS = ["เม็ด", "แคปซูล", "ช้อนชา", "มล.", "ซอง", "หยด", "พัฟ"] as const;
+export const MEDICATION_DOSE_UNITS = [
+  "เม็ด",
+  "แคปซูล",
+  "ช้อนชา",
+  "มล.",
+  "ซอง",
+  "หยด",
+  "พัฟ",
+  "ยูนิต",
+  "เข็ม",
+  "หลอด",
+  "แผ่น",
+] as const;
 
 export const MEDICATION_FREQUENCY_LABELS: Record<MedicationFrequency, string> = {
   DAILY: "ทุกวัน",
