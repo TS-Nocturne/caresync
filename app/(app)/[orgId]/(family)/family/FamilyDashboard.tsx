@@ -124,12 +124,10 @@ export default function FamilyDashboard() {
     : "ผู้สูงอายุ";
 
   const aiInsight =
-    overview?.patient?.baselineInsightText ??
-    (overview?.status === "critical"
+    overview?.status === "critical" || overview?.status === "warning"
       ? overview.statusMessage
-      : overview?.status === "warning"
-        ? overview.statusMessage
-        : overview?.vitals
+      : overview?.patient?.baselineInsightText ??
+        (overview?.vitals
           ? `สรุปล่าสุด: ${patientName} อยู่ในสถานะปกติจากข้อมูลค่าสถิติร่างกายล่าสุด กิจวัตรที่ทำแล้ว ${overview.medications.given}/${overview.medications.total} รายการ`
           : `สรุปล่าสุด: ยังไม่มีค่าสถิติร่างกายล่าสุดของ ${patientName} ในระบบ`);
 
