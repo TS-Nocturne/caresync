@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import MetricCard from "@/app/components/ui/MetricCard";
 import {
   getBloodPressureStatus,
@@ -24,8 +25,54 @@ export default function VitalSignsForm({
   onChange: (vitals: VitalData) => void;
   baseline?: VitalBaseline | null;
 }) {
+  const [draftValues, setDraftValues] = useState<Record<keyof VitalData, string>>({
+    systolic: String(vitals.systolic),
+    diastolic: String(vitals.diastolic),
+    temperature: vitals.temperature.toFixed(1),
+    heartRate: String(vitals.heartRate),
+    oxygenSat: String(vitals.oxygenSat),
+  });
+  const [focusedKey, setFocusedKey] = useState<keyof VitalData | null>(null);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDraftValues((current) => ({
+        systolic: focusedKey === "systolic" ? current.systolic : String(vitals.systolic),
+        diastolic: focusedKey === "diastolic" ? current.diastolic : String(vitals.diastolic),
+        temperature: focusedKey === "temperature" ? current.temperature : vitals.temperature.toFixed(1),
+        heartRate: focusedKey === "heartRate" ? current.heartRate : String(vitals.heartRate),
+        oxygenSat: focusedKey === "oxygenSat" ? current.oxygenSat : String(vitals.oxygenSat),
+      }));
+    }, 0);
+
+    return () => window.clearTimeout(id);
+  }, [focusedKey, vitals]);
+
   const update = (key: keyof VitalData, val: number) => {
     onChange({ ...vitals, [key]: val });
+  };
+
+  const updateText = (key: keyof VitalData, rawValue: string, step: number) => {
+    const normalized = rawValue
+      .replace(/[^\d.]/g, "")
+      .replace(/(\..*)\./g, "$1")
+      .replace(/^0+(?=\d)/, "");
+
+    setDraftValues((current) => ({ ...current, [key]: normalized }));
+    if (normalized === "" || normalized === ".") return;
+
+    const nextValue = Number(normalized);
+    if (!Number.isFinite(nextValue)) return;
+    update(key, step % 1 === 0 ? Math.round(nextValue) : nextValue);
+  };
+
+  const restoreText = (key: keyof VitalData, step: number) => {
+    const value = vitals[key];
+    setFocusedKey(null);
+    setDraftValues((current) => ({
+      ...current,
+      [key]: step % 1 === 0 ? String(value) : value.toFixed(1),
+    }));
   };
 
   const fields = [
@@ -151,12 +198,12 @@ export default function VitalSignsForm({
                 </label>
                 <div className="flex items-center gap-2 min-[420px]:justify-end">
                   <input
-                    type="number"
-                    value={val}
-                    onChange={(e) => update(f.key, Number(e.target.value))}
-                    min={f.min}
-                    max={f.max}
-                    step={f.step}
+                    type="text"
+                    inputMode={f.step % 1 === 0 ? "numeric" : "decimal"}
+                    value={draftValues[f.key]}
+                    onFocus={() => setFocusedKey(f.key)}
+                    onChange={(e) => updateText(f.key, e.target.value, f.step)}
+                    onBlur={() => restoreText(f.key, f.step)}
                     className={`w-20 text-right text-sm font-bold tabular-nums rounded-lg border border-input bg-background px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-ring ${
                       status === "critical"
                         ? "text-status-critical"

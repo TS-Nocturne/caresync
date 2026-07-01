@@ -1,28 +1,57 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import type { IExerciseData, IMuscleStats, Muscle } from "react-body-highlighter";
 import {
-  ANTERIOR_MUSCLES,
   getPainColor,
   getPainSeverity,
-  PAIN_HIGHLIGHT_COLORS,
-  POSTERIOR_MUSCLES,
   REGION_LABELS,
   REGION_TO_MUSCLE,
   type PainPoint,
   type PainRegion,
 } from "./pain-body-config";
 
-const BodyModel = dynamic(() => import("react-body-highlighter"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
-      กำลังโหลดแผนที่ร่างกาย...
-    </div>
-  ),
-});
+type BodyGroupId = "head" | "torso" | "arm" | "leg";
+
+const BODY_GROUPS: Array<{ id: BodyGroupId; label: string; regions: PainRegion[] }> = [
+  {
+    id: "head",
+    label: "ศีรษะ / คอ / บ่า",
+    regions: ["head", "neck", "trapezius"],
+  },
+  {
+    id: "torso",
+    label: "ลำตัว",
+    regions: ["left-chest", "right-chest", "abs", "obliques", "upper-back", "lower-back"],
+  },
+  {
+    id: "arm",
+    label: "แขน / ไหล่",
+    regions: [
+      "left-front-deltoids",
+      "right-front-deltoids",
+      "left-back-deltoids",
+      "right-back-deltoids",
+      "biceps",
+      "triceps",
+      "forearm",
+    ],
+  },
+  {
+    id: "leg",
+    label: "ขา / เท้า",
+    regions: [
+      "quadriceps",
+      "hamstring",
+      "adductor",
+      "abductors",
+      "knees",
+      "calves",
+      "gluteal",
+      "left-soleus",
+      "right-soleus",
+    ],
+  },
+];
 
 function PainScaleControl({
   value,
@@ -50,7 +79,7 @@ function PainScaleControl({
         className="h-2 w-full cursor-pointer accent-red-600"
         aria-label="ระดับความปวด 1 ถึง 10"
       />
-      <div className="grid grid-cols-10 gap-1">
+      <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
         {Array.from({ length: 10 }, (_, i) => i + 1).map((level) => {
           const isSelected = value === level;
           return (
@@ -58,7 +87,7 @@ function PainScaleControl({
               key={level}
               type="button"
               onClick={() => onChange(level)}
-              className={`flex h-9 min-w-0 items-center justify-center rounded-md border text-xs font-bold tabular-nums transition ${
+              className={`flex h-11 min-w-0 items-center justify-center rounded-md border text-sm font-bold tabular-nums transition ${
                 isSelected
                   ? `border-transparent text-white shadow-sm ring-2 ring-offset-1 ${severity.ring}`
                   : "border-border bg-background text-muted-foreground hover:bg-muted"
@@ -93,11 +122,13 @@ function SummaryMetric({ label, value, helper }: { label: string; value: string;
 
 export default function PainBodyMap() {
   const [painPoints, setPainPoints] = useState<PainPoint[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<PainRegion | null>(null);
-  const [view, setView] = useState<"anterior" | "posterior">("anterior");
+  const [selectedGroup, setSelectedGroup] = useState<BodyGroupId>("torso");
+  const [selectedRegion, setSelectedRegion] = useState<PainRegion | "">("");
 
-  const selectedPainPoint = painPoints.find((point) => point.region === selectedRegion);
-  const quickRegions = view === "anterior" ? ANTERIOR_MUSCLES : POSTERIOR_MUSCLES;
+  const group = BODY_GROUPS.find((item) => item.id === selectedGroup) ?? BODY_GROUPS[1];
+  const selectedPainPoint = selectedRegion
+    ? painPoints.find((point) => point.region === selectedRegion)
+    : null;
 
   const sortedPainPoints = useMemo(
     () => [...painPoints].sort((a, b) => b.level - a.level || a.label.localeCompare(b.label, "th")),
@@ -109,19 +140,6 @@ export default function PainBodyMap() {
     const max = Math.max(...painPoints.map((point) => point.level));
     const average = painPoints.reduce((total, point) => total + point.level, 0) / painPoints.length;
     return { max, average, label: getPainSeverity(max).label };
-  }, [painPoints]);
-
-  const modelData: IExerciseData[] = useMemo(() => {
-    const levelsByMuscle = new Map<Muscle, number>();
-    painPoints.forEach((point) => {
-      levelsByMuscle.set(point.muscle, Math.max(levelsByMuscle.get(point.muscle) ?? 0, point.level));
-    });
-
-    return Array.from(levelsByMuscle.entries()).map(([muscle, level]) => ({
-      name: `${level}`,
-      muscles: [muscle],
-      frequency: level,
-    }));
   }, [painPoints]);
 
   const selectOrCreateRegion = useCallback((region: PainRegion) => {
@@ -142,7 +160,7 @@ export default function PainBodyMap() {
 
   const removeRegion = useCallback((region: PainRegion) => {
     setPainPoints((current) => current.filter((point) => point.region !== region));
-    setSelectedRegion((current) => (current === region ? null : current));
+    setSelectedRegion((current) => (current === region ? "" : current));
   }, []);
 
   const updateLevel = useCallback((region: PainRegion, level: number) => {
@@ -151,26 +169,19 @@ export default function PainBodyMap() {
     );
   }, []);
 
-  const handleMuscleClick = useCallback(
-    ({ muscle }: IMuscleStats) => {
-      selectOrCreateRegion(muscle);
-    },
-    [selectOrCreateRegion]
-  );
-
   return (
     <section className="glass-card animate-fade-in p-5">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">ดัชนีความเจ็บปวด</h2>
-          <p className="mt-1 text-sm text-muted-foreground">แผนที่ร่างกายและระดับความปวด 1-10</p>
+          <p className="mt-1 text-sm text-muted-foreground">เลือกตำแหน่งด้วยช่องเลือกขนาดใหญ่ ใช้ง่ายบนมือถือ</p>
         </div>
         {painPoints.length > 0 ? (
           <button
             type="button"
             onClick={() => {
               setPainPoints([]);
-              setSelectedRegion(null);
+              setSelectedRegion("");
             }}
             className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
           >
@@ -189,93 +200,93 @@ export default function PainBodyMap() {
         />
       </div>
 
-      <div className="mb-4 grid grid-cols-2 rounded-lg border border-border bg-muted p-1">
-        {(["anterior", "posterior"] as const).map((side) => (
-          <button
-            key={side}
-            type="button"
-            onClick={() => setView(side)}
-            className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
-              view === side
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            aria-pressed={view === side}
-          >
-            {side === "anterior" ? "ด้านหน้า" : "ด้านหลัง"}
-          </button>
-        ))}
-      </div>
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium text-foreground">ส่วนของร่างกาย</span>
+            <select
+              value={selectedGroup}
+              onChange={(event) => {
+                setSelectedGroup(event.target.value as BodyGroupId);
+                setSelectedRegion("");
+              }}
+              className="min-h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground outline-none focus:ring-2 focus:ring-ring"
+            >
+              {BODY_GROUPS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="rounded-xl border border-border bg-background p-4">
-          <div className="mx-auto max-w-[18rem] [&_.rbh-wrapper]:mx-auto [&_.rbh]:cursor-pointer">
-            <BodyModel
-              data={modelData}
-              type={view}
-              bodyColor="#d4d4d8"
-              highlightedColors={PAIN_HIGHLIGHT_COLORS}
-              onClick={handleMuscleClick}
-              style={{ width: "100%", maxWidth: "18rem", margin: "0 auto", padding: "0.5rem" }}
+          <label className="space-y-1.5">
+            <span className="text-sm font-medium text-foreground">ระบุตำแหน่ง</span>
+            <select
+              value={selectedRegion}
+              onChange={(event) => {
+                const region = event.target.value as PainRegion;
+                if (region) selectOrCreateRegion(region);
+              }}
+              className="min-h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">เลือกตำแหน่ง</option>
+              {group.regions.map((region) => (
+                <option key={region} value={region}>
+                  {REGION_LABELS[region]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            ตำแหน่งในกลุ่มนี้
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {group.regions.map((region) => {
+              const point = painPoints.find((item) => item.region === region);
+              return (
+                <button
+                  key={region}
+                  type="button"
+                  onClick={() => selectOrCreateRegion(region)}
+                  className={`min-h-12 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    point
+                      ? "border-red-200 bg-red-50 text-red-700"
+                      : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  {REGION_LABELS[region]}
+                  {point ? <span className="ml-1 tabular-nums">({point.level})</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedPainPoint ? (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">{selectedPainPoint.label}</p>
+                <p className="mt-1 text-xs text-muted-foreground">ปรับระดับความปวดสำหรับตำแหน่งนี้</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeRegion(selectedPainPoint.region)}
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+              >
+                ลบจุดนี้
+              </button>
+            </div>
+            <PainScaleControl
+              value={selectedPainPoint.level}
+              onChange={(level) => updateLevel(selectedPainPoint.region, level)}
             />
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              ตำแหน่งที่พบบ่อย
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {quickRegions.map((region) => {
-                const point = painPoints.find((item) => item.region === region);
-                return (
-                  <button
-                    key={region}
-                    type="button"
-                    onClick={() => selectOrCreateRegion(region)}
-                    className={`min-h-9 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-                      point
-                        ? "border-red-200 bg-red-50 text-red-700"
-                        : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {REGION_LABELS[region]}
-                    {point ? <span className="ml-1 tabular-nums">({point.level})</span> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {selectedPainPoint ? (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{selectedPainPoint.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    ปรับระดับแล้วสีบนแผนที่จะเปลี่ยนตามความรุนแรง
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeRegion(selectedPainPoint.region)}
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                >
-                  ลบจุดนี้
-                </button>
-              </div>
-              <PainScaleControl
-                value={selectedPainPoint.level}
-                onChange={(level) => updateLevel(selectedPainPoint.region, level)}
-              />
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-              เลือกตำแหน่งบนแผนที่หรือปุ่มตำแหน่งเพื่อเริ่มบันทึก
-            </div>
-          )}
-        </div>
+        ) : null}
       </div>
 
       <div className="mt-5">

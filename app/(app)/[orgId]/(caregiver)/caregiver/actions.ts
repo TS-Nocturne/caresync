@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession, requireOrgMembership } from "@/lib/auth-server";
 import { requireCaregiverWriteAccess } from "@/lib/caregiver-access";
 import { requireWritableSubscription } from "@/lib/subscriptions";
-import { assessVitalRisk } from "@/lib/vital-alerts";
+import { assessVitalRisk, summarizeVitalAlerts } from "@/lib/vital-alerts";
 
 export interface CreateVitalSignInput {
   orgId: string;
@@ -80,6 +80,7 @@ export async function createVitalSignAction(input: CreateVitalSignInput) {
     .join(", ");
 
   const riskAlerts = assessVitalRisk(vitalData, patient);
+  const groupedAlert = summarizeVitalAlerts(riskAlerts);
   const newVital = await prisma.$transaction(async (tx) => {
     const createdVital = await tx.vitalSign.create({ data: vitalData });
 
@@ -104,14 +105,16 @@ export async function createVitalSignAction(input: CreateVitalSignInput) {
           description: alert.description,
         },
       });
+    }
 
+    if (groupedAlert) {
       await tx.activityLog.create({
         data: {
           organizationId: orgId,
           patientId,
           type: "ALERT_TRIGGERED",
-          title: alert.title,
-          description: alert.description,
+          title: groupedAlert.title,
+          description: groupedAlert.description,
           userId: session.user.id,
         },
       });

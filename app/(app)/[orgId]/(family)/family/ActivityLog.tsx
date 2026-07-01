@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { FamilyOverviewData } from "./FamilyDashboard";
+import LineConnectCard from "@/app/components/line/LineConnectCard";
 
 type LogEntry = FamilyOverviewData["activityLogs"][number];
 
@@ -72,11 +73,11 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
         </p>
       ) : (
         <div className="relative space-y-6 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-          {filteredLogs.map((log) => {
+          {filteredLogs.map((log, index) => {
             const config = typeConfig[log.type];
             return (
+              <div key={log.id} className="space-y-4">
               <div
-                key={log.id}
                 className="relative flex items-start gap-3 md:justify-normal md:gap-0 md:odd:flex-row-reverse group"
               >
                 <div
@@ -102,6 +103,17 @@ export default function ActivityLog({ logs }: { logs: LogEntry[] }) {
                     </span>
                   </div>
                 </div>
+              </div>
+              {index === 1 && filter === "all" ? (
+                <div className="relative z-10 md:mx-auto md:w-[calc(50%-2.5rem)]">
+                  <LineConnectCard
+                    mode="compact"
+                    hideWhenConnected
+                    title="รู้ทันทีเมื่อเกิดเหตุการณ์แบบนี้"
+                    description="รับแจ้งเตือนอาการผิดปกติ การให้ยา และเหตุฉุกเฉินผ่าน LINE แบบ Real-time"
+                  />
+                </div>
+              ) : null}
               </div>
             );
           })}

@@ -32,6 +32,24 @@ export interface VitalAlert {
   description: string;
 }
 
+function highestAlertLevel(alerts: VitalAlert[]): AlertLevel {
+  if (alerts.some((alert) => alert.level === "CRITICAL")) return "CRITICAL";
+  if (alerts.some((alert) => alert.level === "WARNING")) return "WARNING";
+  return "INFO";
+}
+
+export function summarizeVitalAlerts(alerts: VitalAlert[]): VitalAlert | null {
+  if (alerts.length === 0) return null;
+  if (alerts.length === 1) return alerts[0];
+
+  const titles = alerts.map((alert) => alert.title);
+  return {
+    level: highestAlertLevel(alerts),
+    title: `ตรวจพบค่าสถิติร่างกายผิดปกติ ${alerts.length} รายการ`,
+    description: `${titles.join(", ")} — ${alerts.map((alert) => alert.description).join("; ")}`,
+  };
+}
+
 function getOxygenThresholds(baseline?: VitalBaseline | null) {
   if (baseline?.baselineOxygenSatMin != null && Number.isFinite(baseline.baselineOxygenSatMin)) {
     return {

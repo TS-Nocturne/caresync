@@ -101,7 +101,7 @@ export async function POST(request: Request) {
       if (recentLogs.length > 0) {
         aiSummary += "\n- เหตุการณ์ล่าสุด:";
         recentLogs.forEach((log) => {
-          aiSummary += `\n  • ${log.title}`;
+          aiSummary += `\n  • ${log.title}: ${log.description}`;
         });
       }
     } else {

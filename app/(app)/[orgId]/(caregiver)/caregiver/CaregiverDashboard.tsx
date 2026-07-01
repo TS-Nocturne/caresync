@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import StatusBadge from "@/app/components/ui/StatusBadge";
 import MedicalDisclaimer from "@/app/components/ui/MedicalDisclaimer";
+import OpenInLineBanner from "@/app/components/line/OpenInLineBanner";
 import CheckInOut from "./CheckInOut";
 import SharedCalendar from "../../(family)/family/SharedCalendar";
 import VitalSignsForm, { type VitalData } from "./VitalSignsForm";
@@ -307,6 +308,9 @@ export default function CaregiverDashboard() {
           {error}
         </div>
       )}
+
+      <OpenInLineBanner orgId={orgId} patientId={patient?.id ?? null} mode="caregiver" />
+      <OpenInLineBanner orgId={orgId} patientId={patient?.id ?? null} mode="caregiver" variant="fab" />
 
       {brainMessage && (
         <div className="p-4 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 text-sm">

@@ -150,6 +150,15 @@ button {
   font: inherit;
 }
 
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  touch-action: manipulation;
+}
+
 table {
   min-width: 640px;
 }

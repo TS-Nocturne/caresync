@@ -61,6 +61,43 @@ function formatRecentCareContext({
   return lines.slice(0, 40).join("\n");
 }
 
+type MedicationForBrain = {
+  name: string;
+  strength: string | null;
+  doseAmount: number | null;
+  doseUnit: string | null;
+  dosage: string;
+  isPrn: boolean;
+  frequency: string;
+  indication: string | null;
+  instruction: string | null;
+  status: string;
+  givenAt: Date | null;
+};
+
+type MedicationEventForBrain = {
+  title: string;
+  description: string;
+  createdAt: Date;
+};
+
+function formatMedicationForBrain(med: MedicationForBrain) {
+  return [
+    med.name,
+    med.strength,
+    med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage,
+    med.isPrn ? "PRN/as-needed" : med.frequency,
+    med.indication ? `for ${med.indication}` : null,
+    med.instruction ? `instruction: ${med.instruction}` : null,
+    med.status ? `status ${med.status}` : null,
+    med.givenAt ? `given at ${med.givenAt.toISOString()}` : null,
+  ].filter(Boolean).join(" ");
+}
+
+function formatMedicationEventForBrain(event: MedicationEventForBrain) {
+  return `recent medication event ${event.createdAt.toISOString()}: ${event.title} - ${event.description}`;
+}
+
 async function recordSymptoms({
   orgId,
   patientId,
@@ -133,6 +170,15 @@ export async function POST(request: Request) {
     const notes = sanitizeText(body.notes, 1000) || undefined;
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+    await recordSymptoms({
+      orgId,
+      patientId,
+      patientName: `${patient.firstName} ${patient.lastName}`,
+      symptoms,
+      notes,
+      userId: session.user.id,
+    });
+
     const [recentSymptoms, recentPainLogs, recentMedicationLogs] = await Promise.all([
       prisma.symptomLog.findMany({
         where: { organizationId: orgId, patientId, loggedAt: { gte: since } },
@@ -151,7 +197,7 @@ export async function POST(request: Request) {
           organizationId: orgId,
           patientId,
           createdAt: { gte: since },
-          type: { in: ["MEDICATION_GIVEN", "MEDICATION_SKIPPED", "SYMPTOM_LOGGED"] },
+          type: { in: ["MEDICATION_GIVEN", "MEDICATION_SKIPPED"] },
         },
         orderBy: { createdAt: "desc" },
         take: 20,
@@ -167,14 +213,10 @@ export async function POST(request: Request) {
       recentMedicationLogs,
     });
 
-    await recordSymptoms({
-      orgId,
-      patientId,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      symptoms,
-      notes,
-      userId: session.user.id,
-    });
+    const medicationsForBrain = [
+      ...patient.medications.map(formatMedicationForBrain),
+      ...recentMedicationLogs.map(formatMedicationEventForBrain),
+    ];
 
     const assessment = await callBrain<BrainAssessmentResult>("/brain/assess", {
       method: "POST",
@@ -201,17 +243,7 @@ export async function POST(request: Request) {
           baseline_calculated_at: patient.baselineCalculatedAt?.toISOString() ?? null,
         },
         symptoms,
-        current_medications: patient.medications.map((med) =>
-          [
-            med.name,
-            med.strength,
-            med.doseAmount != null && med.doseUnit ? `${med.doseAmount} ${med.doseUnit}` : med.dosage,
-            med.isPrn ? "PRN" : med.frequency,
-            med.indication ? `for ${med.indication}` : null,
-            med.status ? `status ${med.status}` : null,
-            med.givenAt ? `given at ${med.givenAt.toISOString()}` : null,
-          ].filter(Boolean).join(" ")
-        ),
+        current_medications: medicationsForBrain,
         recent_care_context: recentCareContext,
         validation_confirmed: body.validation_confirmed ?? false,
       }),

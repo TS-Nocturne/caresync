@@ -8,11 +8,28 @@ import ThemeToggle from "@/app/components/ui/ThemeToggle";
 import GoogleSignInButton from "@/app/components/auth/GoogleSignInButton";
 import { sanitizeCallbackUrl } from "@/lib/redirects";
 
+function detectInAppBrowser(): "line" | "other" | null {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("line/")) return "line";
+  if (
+    ua.includes("fbav") ||
+    ua.includes("fban") ||
+    ua.includes("instagram") ||
+    ua.includes("twitter") ||
+    ua.includes("wv")
+  ) {
+    return "other";
+  }
+  return null;
+}
+
 function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [inAppBrowser] = useState<"line" | "other" | null>(() => detectInAppBrowser());
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = sanitizeCallbackUrl(searchParams.get("callbackUrl"), "/dashboard");
@@ -74,6 +91,14 @@ function LoginForm() {
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-rose-50 text-rose-600 text-sm">{error}</div>
         )}
+
+        {inAppBrowser ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {inAppBrowser === "line"
+              ? "คุณกำลังเปิดผ่าน LINE In-App Browser หากล็อกอินแล้วกลับมาไม่ติด ให้กดเมนูมุมขวาบนแล้วเลือก Open in Browser หรือเปิดผ่าน LIFF link ของระบบ"
+              : "คุณกำลังเปิดผ่าน In-App Browser ซึ่งอาจทำให้ LINE Login กลับมาคนละเบราว์เซอร์ แนะนำให้เลือก Open in Browser ก่อนเข้าสู่ระบบ"}
+          </div>
+        ) : null}
 
         <div className="space-y-4 mb-4">
           <GoogleSignInButton callbackURL={callbackUrl} />

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireOrgMembership } from "@/lib/auth-server";
-import { assessVitalRisk } from "@/lib/vital-alerts";
+import { assessVitalRisk, summarizeVitalAlerts } from "@/lib/vital-alerts";
 import { apiError, readJsonBody } from "@/lib/api-security";
 import { requireWritableSubscription } from "@/lib/subscriptions";
 import { getPortalAccess, requirePatientAccess } from "@/lib/workspace-access";
@@ -134,6 +134,7 @@ export async function POST(request: Request) {
     });
 
     const riskAlerts = assessVitalRisk(vitalData, patient);
+    const groupedAlert = summarizeVitalAlerts(riskAlerts);
     for (const alert of riskAlerts) {
       await prisma.alert.create({
         data: {
@@ -144,14 +145,16 @@ export async function POST(request: Request) {
           description: alert.description,
         },
       });
+    }
 
+    if (groupedAlert) {
       await prisma.activityLog.create({
         data: {
           organizationId: orgId,
           patientId,
           type: "ALERT_TRIGGERED",
-          title: alert.title,
-          description: alert.description,
+          title: groupedAlert.title,
+          description: groupedAlert.description,
           userId: session.user.id,
         },
       });
