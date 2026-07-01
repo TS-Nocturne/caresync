@@ -124,9 +124,24 @@ export async function GET(request: Request) {
       },
       orderBy: { createdAt: "desc" },
     });
+    const latestResolvedAlert = await prisma.alert.findFirst({
+      where: {
+        organizationId: orgId,
+        patientId: patient.id,
+        resolvedAt: { not: null },
+        level: { in: ["WARNING", "CRITICAL"] },
+      },
+      orderBy: { resolvedAt: "desc" },
+      select: { resolvedAt: true },
+    });
 
     const vitalStatus = getPatientStatus(vitalInput, patient);
-    const status = toUiStatus(vitalStatus, activeAlert?.level ?? null);
+    const latestVitalsReviewed =
+      !activeAlert &&
+      latestVital?.measuredAt &&
+      latestResolvedAlert?.resolvedAt &&
+      latestResolvedAlert.resolvedAt >= latestVital.measuredAt;
+    const status = latestVitalsReviewed ? "ok" : toUiStatus(vitalStatus, activeAlert?.level ?? null);
 
     const caregiverName = patient.caregivers[0]?.user.name ?? null;
     let alertMsg = activeAlert?.description;
@@ -140,7 +155,9 @@ export async function GET(request: Request) {
     }
 
     const statusMessage =
-      status === "critical"
+      latestVitalsReviewed
+        ? "ผู้ดูแลตรวจสอบรายการแจ้งเตือนล่าสุดแล้ว — รอการบันทึกค่าสถิติร่างกายรอบถัดไป"
+        : status === "critical"
         ? alertMsg ?? "พบข้อมูลที่ควรตรวจสอบด่วน — รอผู้ดูแลยืนยันสถานการณ์"
         : status === "warning"
           ? alertMsg ?? "มีข้อมูลที่ควรติดตาม — ทีมดูแลกำลังตรวจสอบ"

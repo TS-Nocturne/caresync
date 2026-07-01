@@ -45,19 +45,27 @@ export async function POST(request: Request) {
     if (!alert) throw new Error("Alert not found");
 
     if (alert.resolvedAt) {
-      return NextResponse.json({ error: "Alert is already resolved" }, { status: 400 });
+      return NextResponse.json({ success: true, alreadyResolved: true });
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.alert.update({
-        where: { id: alertId },
+      const resolution = {
+        ...parseActionTaken(alert.actionTaken),
+        resolvedReason: reason,
+        resolvedAt: new Date().toISOString(),
+      };
+
+      await tx.alert.updateMany({
+        where: {
+          organizationId: orgId,
+          patientId: alert.patientId,
+          resolvedAt: null,
+          level: { in: ["WARNING", "CRITICAL"] },
+        },
         data: {
           resolvedAt: new Date(),
           resolvedById: session.user.id,
-          actionTaken: JSON.stringify({
-            ...parseActionTaken(alert.actionTaken),
-            resolvedReason: reason,
-          }),
+          actionTaken: JSON.stringify(resolution),
         },
       });
 
